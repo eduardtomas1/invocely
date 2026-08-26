@@ -2,6 +2,7 @@ package storage;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Locale;
 import java.util.prefs.Preferences;
 
 public final class AppPreferences {
@@ -32,7 +33,7 @@ public final class AppPreferences {
     public static String getLanguageTag() {
         String tag = PREFS.get(KEY_LANGUAGE, "en-US");
         if (tag == null || tag.isBlank()) return "en-US";
-        String normalized = tag.trim().toLowerCase();
+        String normalized = tag.trim().toLowerCase(Locale.ROOT);
         if (normalized.startsWith("ca")) return "ca-ES";
         if (normalized.startsWith("es")) return "es-ES";
         if (normalized.startsWith("en")) return "en-US";

@@ -10,6 +10,7 @@ import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class PartnerManagerDialog extends JDialog {
     private final BusinessPartnerStore store = new BusinessPartnerStore();
@@ -149,7 +150,7 @@ public class PartnerManagerDialog extends JDialog {
     }
 
     private void applyFilter() {
-        String query = tfSearch.getText() == null ? "" : tfSearch.getText().trim().toLowerCase();
+        String query = tfSearch.getText() == null ? "" : tfSearch.getText().trim().toLowerCase(Locale.ROOT);
         listModel.clear();
         for (BusinessPartner partner : allPartners) {
             if (query.isEmpty() || matches(partner, query)) {
@@ -164,8 +165,8 @@ public class PartnerManagerDialog extends JDialog {
     }
 
     private boolean matches(BusinessPartner partner, String query) {
-        String name = partner.getName() == null ? "" : partner.getName().toLowerCase();
-        String nif = partner.getNif() == null ? "" : partner.getNif().toLowerCase();
+        String name = partner.getName() == null ? "" : partner.getName().toLowerCase(Locale.ROOT);
+        String nif = partner.getNif() == null ? "" : partner.getNif().toLowerCase(Locale.ROOT);
         return name.contains(query) || nif.contains(query);
     }
 

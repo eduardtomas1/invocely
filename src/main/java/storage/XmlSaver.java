@@ -5,16 +5,10 @@ import models.InvoiceData;
 import models.LineCategory;
 import models.LineItem;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +24,10 @@ import org.w3c.dom.Element;
  * Simple XML persistence for invoices and budgets.
  */
 public class XmlSaver {
+    private static final long MAX_XML_BYTES = 5L * 1024L * 1024L;
+    private static final int MAX_LINES = 10_000;
+    private static final int MAX_TEXT_LENGTH = 20_000;
+    private static final BigDecimal MAX_ABSOLUTE_NUMBER = new BigDecimal("1000000000000000");
     private final Path baseDir;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -43,13 +41,14 @@ public class XmlSaver {
 
     public Path saveInvoice(InvoiceData data) throws Exception {
         Path dir = baseDir.resolve("factures");
-        Files.createDirectories(dir);
+        ensureStorageDirectory(dir);
         String fileName = "factura-" + safeName(data.getInvoiceNumber()) + ".xml";
         Path target = dir.resolve(fileName);
         return saveInvoice(data, target);
     }
 
     public Path saveInvoice(InvoiceData data, Path target) throws Exception {
+        validateInvoice(data);
         Document doc = newDocument();
         Element root = doc.createElement("factura");
         doc.appendChild(root);
@@ -80,13 +79,14 @@ public class XmlSaver {
 
     public Path saveBudget(BudgetData data) throws Exception {
         Path dir = baseDir.resolve("pressupostos");
-        Files.createDirectories(dir);
+        ensureStorageDirectory(dir);
         String fileName = "pressupost-" + safeName(data.getBudgetNumber()) + ".xml";
         Path target = dir.resolve(fileName);
         return saveBudget(data, target);
     }
 
     public Path saveBudget(BudgetData data, Path target) throws Exception {
+        validateBudget(data);
         Document doc = newDocument();
         Element root = doc.createElement("pressupost");
         doc.appendChild(root);
@@ -124,6 +124,7 @@ public class XmlSaver {
         Element llistat = doc.createElement("linies");
         if (lines != null) {
             for (LineItem li : lines) {
+                if (li == null) continue;
                 Element e = doc.createElement("linia");
                 addText(doc, e, "descripcio", li.getDescription());
                 addText(doc, e, "quantitat", toStr(li.getQuantity()));
@@ -137,10 +138,8 @@ public class XmlSaver {
         root.appendChild(llistat);
     }
 
-    private Document newDocument() throws ParserConfigurationException {
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        DocumentBuilder db = dbf.newDocumentBuilder();
-        return db.newDocument();
+    private Document newDocument() throws Exception {
+        return SecureXml.newDocument();
     }
 
     public InvoiceData loadInvoice(Path file) throws Exception {
@@ -151,11 +150,11 @@ public class XmlSaver {
         }
         String num = text(root, "numero");
         LocalDate data = parseDate(text(root, "data"));
-        BigDecimal vatPercent = parseBD(text(root, "iva_percent"));
+        BigDecimal vatPercent = parsePercent(text(root, "iva_percent"));
         if (vatPercent.compareTo(BigDecimal.ZERO) == 0) {
             vatPercent = readLegacyVatPercent(root);
         }
-        boolean split = Boolean.parseBoolean(text(root, "linies_desglossades"));
+        boolean split = parseBoolean(root, "linies_desglossades");
 
         Element em = child(root, "emissor");
         Element cl = child(root, "client");
@@ -189,13 +188,14 @@ public class XmlSaver {
         String num = text(root, "numero");
         LocalDate data = parseDate(text(root, "data"));
         LocalDate valid = parseDate(text(root, "valid_fins"));
-        boolean split = Boolean.parseBoolean(text(root, "linies_desglossades"));
-        boolean includeTotals = Boolean.parseBoolean(text(root, "incloure_totals"));
+        validateDateRange(data, valid);
+        boolean split = parseBoolean(root, "linies_desglossades");
+        boolean includeTotals = parseBoolean(root, "incloure_totals");
         String taxName = text(root, "nom_impost");
         if (taxName != null && taxName.isBlank()) {
             taxName = null;
         }
-        BigDecimal taxPercent = parseBD(text(root, "impost_percent"));
+        BigDecimal taxPercent = parsePercent(text(root, "impost_percent"));
 
         Element prov = child(root, "proveidor");
         Element cli = child(root, "client");
@@ -223,57 +223,102 @@ public class XmlSaver {
     }
 
     private Document parse(Path file) throws Exception {
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        DocumentBuilder db = dbf.newDocumentBuilder();
-        return db.parse(file.toFile());
+        SafeFiles.requireReadableFile(file, MAX_XML_BYTES);
+        return SecureXml.newDocumentBuilder().parse(file.toFile());
     }
 
     private Element child(Element parent, String tag) {
-        return (Element) parent.getElementsByTagName(tag).item(0);
+        if (parent == null) return null;
+        org.w3c.dom.Node node = parent.getFirstChild();
+        while (node != null) {
+            if (node instanceof Element && tag.equals(((Element) node).getTagName())) {
+                return (Element) node;
+            }
+            node = node.getNextSibling();
+        }
+        return null;
     }
 
     private String text(Element parent, String tag) {
-        if (parent == null) return "";
-        Element n = (Element) parent.getElementsByTagName(tag).item(0);
-        return n != null && n.getFirstChild()!=null ? n.getFirstChild().getNodeValue() : "";
+        Element element = child(parent, tag);
+        if (element != null) {
+            org.w3c.dom.Node node = element.getFirstChild();
+            while (node != null) {
+                if (node instanceof Element) {
+                    throw new IllegalArgumentException(
+                            "The XML field '" + tag + "' must contain plain text only.");
+                }
+                node = node.getNextSibling();
+            }
+        }
+        String value = element != null ? element.getTextContent() : "";
+        if (value != null && value.length() > MAX_TEXT_LENGTH) {
+            throw new IllegalArgumentException("The XML field '" + tag + "' is too long.");
+        }
+        return value != null ? value : "";
     }
 
     private LocalDate parseDate(String s) {
+        if (s == null || s.isBlank()) return null;
         try {
-            if (s == null || s.isBlank()) return null;
-            return LocalDate.parse(s);
+            return LocalDate.parse(s.trim());
         } catch (Exception e) {
-            return null;
+            throw new IllegalArgumentException("The XML document contains an invalid date.", e);
         }
     }
 
     private java.util.List<LineItem> readLines(Element root) {
         java.util.List<LineItem> list = new java.util.ArrayList<>();
-        org.w3c.dom.NodeList nl = root.getElementsByTagName("linia");
-        for (int i = 0; i < nl.getLength(); i++) {
-            Element e = (Element) nl.item(i);
+        for (Element e : lineElements(root)) {
             LineItem li = new LineItem();
             li.setDescription(text(e, "descripcio"));
-            li.setQuantity(parseBD(text(e, "quantitat")));
-            li.setUnitPrice(parseBD(text(e, "preu_unitari")));
-            BigDecimal discount = parseBD(text(e, "descompte_percent"));
+            li.setQuantity(parseNumber(text(e, "quantitat")));
+            li.setUnitPrice(parseNumber(text(e, "preu_unitari")));
+            BigDecimal discount = parsePercent(text(e, "descompte_percent"));
             if (discount.compareTo(BigDecimal.ZERO) == 0) {
-                discount = parseBD(text(e, "irpf_percent"));
+                discount = parsePercent(text(e, "irpf_percent"));
             }
             li.setDiscountPercent(discount);
-            li.setCategory(parseCategory(text(e, "categoria")));
+            Element category = child(e, "categoria");
+            li.setCategory(category == null ? LineCategory.MATERIAL : parseCategory(text(e, "categoria")));
             list.add(li);
         }
         return list;
     }
 
-    private BigDecimal parseBD(String s) {
-        try {
-            if (s == null || s.isBlank()) return BigDecimal.ZERO;
-            return new BigDecimal(s.trim().replace(',', '.'));
-        } catch (Exception e) {
-            return BigDecimal.ZERO;
+    private BigDecimal parseNumber(String s) {
+        if (s == null || s.isBlank()) return BigDecimal.ZERO;
+        String value = s.trim().replace(',', '.');
+        if (value.length() > 64) {
+            throw new IllegalArgumentException("The XML document contains a number that is too long.");
         }
+        final BigDecimal parsed;
+        try {
+            parsed = new BigDecimal(value);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("The XML document contains an invalid number.", e);
+        }
+        if (parsed.precision() > 24 || parsed.scale() < -6 || parsed.scale() > 8
+                || parsed.abs().compareTo(MAX_ABSOLUTE_NUMBER) > 0) {
+            throw new IllegalArgumentException("The XML document contains a number outside the supported range.");
+        }
+        return parsed;
+    }
+
+    private BigDecimal parsePercent(String s) {
+        BigDecimal parsed = parseNumber(s);
+        if (parsed.compareTo(BigDecimal.ZERO) < 0 || parsed.compareTo(new BigDecimal("100")) > 0) {
+            throw new IllegalArgumentException("The XML document contains a percentage outside 0–100.");
+        }
+        return parsed;
+    }
+
+    private boolean parseBoolean(Element parent, String tag) {
+        if (child(parent, tag) == null) return false;
+        String value = text(parent, tag).trim();
+        if ("true".equalsIgnoreCase(value)) return true;
+        if ("false".equalsIgnoreCase(value)) return false;
+        throw new IllegalArgumentException("The XML field '" + tag + "' must be true or false.");
     }
 
     private void addText(Document doc, Element parent, String tag, String text) {
@@ -287,15 +332,113 @@ public class XmlSaver {
     }
 
     private BigDecimal readLegacyVatPercent(Element root) {
-        org.w3c.dom.NodeList nl = root.getElementsByTagName("linia");
-        for (int i = 0; i < nl.getLength(); i++) {
-            Element e = (Element) nl.item(i);
-            BigDecimal vat = parseBD(text(e, "iva_percent"));
+        for (Element e : lineElements(root)) {
+            BigDecimal vat = parsePercent(text(e, "iva_percent"));
             if (vat.compareTo(BigDecimal.ZERO) > 0) {
                 return vat;
             }
         }
         return BigDecimal.ZERO;
+    }
+
+    private java.util.List<Element> lineElements(Element root) {
+        java.util.List<Element> elements = new java.util.ArrayList<>();
+        Element lines = child(root, "linies");
+        if (lines == null) return elements;
+        org.w3c.dom.Node node = lines.getFirstChild();
+        while (node != null) {
+            if (node instanceof Element && "linia".equals(((Element) node).getTagName())) {
+                elements.add((Element) node);
+                if (elements.size() > MAX_LINES) {
+                    throw new IllegalArgumentException("The XML document contains too many line items.");
+                }
+            }
+            node = node.getNextSibling();
+        }
+        return elements;
+    }
+
+    private void validateInvoice(InvoiceData data) {
+        if (data == null) throw new IllegalArgumentException("No invoice data was provided.");
+        validateText(data.getInvoiceNumber());
+        validateText(data.getIssuerName());
+        validateText(data.getIssuerNif());
+        validateText(data.getIssuerAddress());
+        validateText(data.getIssuerAccount());
+        validateText(data.getCustomerName());
+        validateText(data.getCustomerNif());
+        validateText(data.getCustomerAddress());
+        validatePercent(data.getVatPercent());
+        validateLines(data.getLines());
+    }
+
+    private void validateBudget(BudgetData data) {
+        if (data == null) throw new IllegalArgumentException("No quote data was provided.");
+        validateText(data.getBudgetNumber());
+        validateText(data.getSupplierName());
+        validateText(data.getSupplierNif());
+        validateText(data.getSupplierAddress());
+        validateText(data.getClientName());
+        validateText(data.getClientNif());
+        validateText(data.getClientAddress());
+        validateText(data.getPaymentTerms());
+        validateText(data.getNotes());
+        validateText(data.getTaxName());
+        validatePercent(data.getTaxPercent());
+        validateDateRange(data.getIssueDate(), data.getValidUntil());
+        validateLines(data.getLines());
+    }
+
+    private void validateDateRange(LocalDate issueDate, LocalDate validUntil) {
+        if (issueDate != null && validUntil != null && validUntil.isBefore(issueDate)) {
+            throw new IllegalArgumentException("The quote validity date cannot be before its issue date.");
+        }
+    }
+
+    private void validateLines(List<LineItem> lines) {
+        if (lines == null) return;
+        if (lines.size() > MAX_LINES) {
+            throw new IllegalArgumentException("The document contains too many line items.");
+        }
+        for (LineItem line : lines) {
+            if (line == null) continue;
+            validateText(line.getDescription());
+            validateNumber(line.getQuantity());
+            validateNumber(line.getUnitPrice());
+            validatePercent(line.getDiscountPercent());
+        }
+    }
+
+    private void validateText(String value) {
+        if (value != null && value.length() > MAX_TEXT_LENGTH) {
+            throw new IllegalArgumentException("A document field is too long.");
+        }
+    }
+
+    private void validateNumber(BigDecimal value) {
+        if (value == null) return;
+        if (value.precision() > 24 || value.scale() < -6 || value.scale() > 8
+                || value.abs().compareTo(MAX_ABSOLUTE_NUMBER) > 0) {
+            throw new IllegalArgumentException("A document number is outside the supported range.");
+        }
+    }
+
+    private void validatePercent(BigDecimal value) {
+        if (value == null) return;
+        validateNumber(value);
+        if (value.compareTo(BigDecimal.ZERO) < 0 || value.compareTo(new BigDecimal("100")) > 0) {
+            throw new IllegalArgumentException("A document percentage is outside 0–100.");
+        }
+    }
+
+    private void ensureStorageDirectory(Path directory) throws Exception {
+        Path normalized = directory.toAbsolutePath().normalize();
+        Path appBase = AppPaths.baseDir().toAbsolutePath().normalize();
+        if (normalized.startsWith(appBase)) {
+            AppPaths.ensurePrivateDirectory(normalized);
+        } else {
+            SafeFiles.createDirectories(normalized, true);
+        }
     }
 
     private String toCategory(LineCategory category) {
@@ -304,27 +447,25 @@ public class XmlSaver {
     }
 
     private LineCategory parseCategory(String value) {
-        if (value == null || value.isBlank()) return LineCategory.MATERIAL;
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("The XML document contains an empty line category.");
+        }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         if ("servei".equals(normalized)) return LineCategory.SERVEI;
         if ("material".equals(normalized)) return LineCategory.MATERIAL;
         try {
             return LineCategory.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (Exception e) {
-            return LineCategory.MATERIAL;
+            throw new IllegalArgumentException("The XML document contains an unknown line category.", e);
         }
     }
 
-    private void write(Document doc, Path target) throws TransformerException, IOException {
-        TransformerFactory tf = TransformerFactory.newInstance();
-        Transformer t = tf.newTransformer();
+    private void write(Document doc, Path target) throws Exception {
+        Transformer t = SecureXml.newTransformerFactory().newTransformer();
         t.setOutputProperty(OutputKeys.INDENT, "yes");
         t.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-        Path parent = target.getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
-        }
-        t.transform(new DOMSource(doc), new StreamResult(target.toFile()));
+        SafeFiles.writeAtomically(target, true,
+                output -> t.transform(new DOMSource(doc), new StreamResult(output)));
     }
 
     private String safeName(String s) {

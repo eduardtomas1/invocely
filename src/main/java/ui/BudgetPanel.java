@@ -124,17 +124,21 @@ public class BudgetPanel extends JPanel {
 
   public BudgetData collect() {
     LineTableModel m = itemsPanel.getModel();
-    List<LineItem> lines = m.getItems();
+    List<LineItem> lines = copyLines(m.getItems());
+    InputParser.validLineItems(lines);
+    LocalDate issueDate = InputParser.requiredDate(cleanText(tfDate));
+    LocalDate validUntil = InputParser.requiredDate(cleanText(tfValid));
+    InputParser.validDateRange(issueDate, validUntil);
     return new BudgetData(
         cleanText(tfNumber),
-        parseDate(cleanText(tfDate)),
-        parseDate(cleanText(tfValid)),
+        issueDate,
+        validUntil,
         cleanText(tfSuppName), cleanText(tfSuppNif), cleanText(tfSuppAddr),
         cleanText(tfClientName), cleanText(tfClientNif), cleanText(tfClientAddr),
         cleanText(tfPayment), cleanText(taNotes),
         cbIncludeTotals.isSelected(),
         cleanText(tfTaxName),
-        parsePercent(tfTaxPercent),
+        InputParser.percent(cleanText(tfTaxPercent)),
         itemsPanel.isSplitLines(),
         lines
     );
@@ -159,12 +163,69 @@ public class BudgetPanel extends JPanel {
     itemsPanel.setSplitLines(data.isSplitLines());
   }
 
-  private LocalDate parseDate(String s) {
-    try {
-      String[] d = s.split("/");
-      return LocalDate.of(Integer.parseInt(d[2]), Integer.parseInt(d[1]), Integer.parseInt(d[0]));
-    } catch (Exception e) {
-      return LocalDate.now();
+  public void applyDefaults(BudgetData data) {
+    if (data == null) return;
+    if ((data.getIssueDate() == null) != (data.getValidUntil() == null)) {
+      throw new IllegalArgumentException(I18n.t("validation.default_dates_pair"));
+    }
+    setField(tfNumber, data.getBudgetNumber());
+    if (data.getIssueDate() != null) setField(tfDate, formatDate(data.getIssueDate()));
+    if (data.getValidUntil() != null) setField(tfValid, formatDate(data.getValidUntil()));
+    setField(tfSuppName, data.getSupplierName());
+    setField(tfSuppNif, data.getSupplierNif());
+    setField(tfSuppAddr, data.getSupplierAddress());
+    setField(tfClientName, data.getClientName());
+    setField(tfClientNif, data.getClientNif());
+    setField(tfClientAddr, data.getClientAddress());
+    setField(tfPayment, data.getPaymentTerms());
+    setField(taNotes, data.getNotes());
+    cbIncludeTotals.setSelected(data.isIncludeTotals());
+    setField(tfTaxName, data.getTaxName());
+    setField(tfTaxPercent, formatPercent(data.getTaxPercent()));
+    itemsPanel.setSplitLines(data.isSplitLines());
+  }
+
+  public DraftState snapshotDraft() {
+    return new DraftState(new String[] {
+        cleanText(tfNumber), cleanText(tfDate), cleanText(tfValid), cleanText(tfSuppName),
+        cleanText(tfSuppNif), cleanText(tfSuppAddr), cleanText(tfClientName), cleanText(tfClientNif),
+        cleanText(tfClientAddr), cleanText(tfPayment), cleanText(taNotes), cleanText(tfTaxName),
+        cleanText(tfTaxPercent)
+    }, cbIncludeTotals.isSelected(), itemsPanel.isSplitLines(),
+        copyLines(itemsPanel.getModel().getItems()));
+  }
+
+  public void restoreDraft(DraftState state) {
+    if (state == null) return;
+    setField(tfNumber, state.fields[0]);
+    setField(tfDate, state.fields[1]);
+    setField(tfValid, state.fields[2]);
+    setField(tfSuppName, state.fields[3]);
+    setField(tfSuppNif, state.fields[4]);
+    setField(tfSuppAddr, state.fields[5]);
+    setField(tfClientName, state.fields[6]);
+    setField(tfClientNif, state.fields[7]);
+    setField(tfClientAddr, state.fields[8]);
+    setField(tfPayment, state.fields[9]);
+    setField(taNotes, state.fields[10]);
+    setField(tfTaxName, state.fields[11]);
+    setField(tfTaxPercent, state.fields[12]);
+    cbIncludeTotals.setSelected(state.includeTotals);
+    itemsPanel.setItems(copyLines(state.lines));
+    itemsPanel.setSplitLines(state.splitLines);
+  }
+
+  public static final class DraftState {
+    private final String[] fields;
+    private final boolean includeTotals;
+    private final boolean splitLines;
+    private final List<LineItem> lines;
+
+    private DraftState(String[] fields, boolean includeTotals, boolean splitLines, List<LineItem> lines) {
+      this.fields = fields.clone();
+      this.includeTotals = includeTotals;
+      this.splitLines = splitLines;
+      this.lines = lines;
     }
   }
 
@@ -183,18 +244,19 @@ public class BudgetPanel extends JPanel {
     }
   }
 
-  private BigDecimal parsePercent(JTextComponent field) {
-    try {
-      String value = cleanText(field);
-      if (value == null || value.isBlank()) return BigDecimal.ZERO;
-      return new BigDecimal(value.replace(',', '.'));
-    } catch (Exception e) {
-      return BigDecimal.ZERO;
-    }
-  }
-
   private String formatPercent(BigDecimal value) {
     return value != null ? value.toPlainString() : "";
+  }
+
+  private List<LineItem> copyLines(List<LineItem> source) {
+    List<LineItem> copy = new java.util.ArrayList<>();
+    if (source == null) return copy;
+    for (LineItem line : source) {
+      if (line == null) continue;
+      copy.add(new LineItem(line.getDescription(), line.getQuantity(), line.getUnitPrice(),
+          line.getDiscountPercent(), line.getCategory()));
+    }
+    return copy;
   }
 
   private JPanel createFormSection(String title, String[] labels, JComponent[] fields) {
@@ -358,9 +420,13 @@ public class BudgetPanel extends JPanel {
   private void openPartnerSelector(Consumer<BusinessPartner> onSelected) {
     Window window = SwingUtilities.getWindowAncestor(this);
     Frame frame = window instanceof Frame ? (Frame) window : null;
-    PartnerSelectorDialog dialog = new PartnerSelectorDialog(frame);
-    dialog.setOnSelected(onSelected);
-    dialog.setVisible(true);
+    try {
+      PartnerSelectorDialog dialog = new PartnerSelectorDialog(frame);
+      dialog.setOnSelected(onSelected);
+      dialog.setVisible(true);
+    } catch (RuntimeException ex) {
+      JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
+    }
   }
 
   private void loadSupplierPartner(BusinessPartner partner) {

@@ -1,7 +1,10 @@
 package models;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -10,6 +13,7 @@ import java.util.List;
  */
 
 public class BudgetData {
+    private static final int MONEY_SCALE = 2;
     private String budgetNumber;
     private LocalDate issueDate;
     private LocalDate validUntil;
@@ -53,7 +57,7 @@ public class BudgetData {
         this.taxName = (taxName == null || taxName.isBlank()) ? "IVA" : taxName;
         this.taxPercent = taxPercent != null ? taxPercent : BigDecimal.ZERO;
         this.splitLines = splitLines;
-        this.lines = lines;
+        this.lines = lines == null ? null : Collections.unmodifiableList(new ArrayList<>(lines));
     }
 
     public BudgetData(String budgetNumber, LocalDate issueDate, LocalDate validUntil,
@@ -184,7 +188,7 @@ public class BudgetData {
     public BigDecimal getTaxAmount()
     {
         BigDecimal percent = getTaxPercent();
-        return getTaxableBase().multiply(percent).divide(new BigDecimal("100"));
+        return money(getTaxableBase().multiply(percent).divide(new BigDecimal("100")));
     }
 
     public boolean hasDiscounts()
@@ -195,5 +199,10 @@ public class BudgetData {
     private BigDecimal nz(BigDecimal value)
     {
         return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private BigDecimal money(BigDecimal value)
+    {
+        return value.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 }
