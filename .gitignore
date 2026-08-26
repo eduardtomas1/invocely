@@ -57,6 +57,9 @@ tmp/
 *.temp
 *.pid
 *.jfr
+*.hprof
+java_pid*
+.attach_pid*
 hs_err_pid*
 replay_pid*
 
