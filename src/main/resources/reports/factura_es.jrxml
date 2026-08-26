@@ -1,377 +1,236 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
-<!-- Created with Jaspersoft Studio version 6.8.0.final using JasperReports Library version 6.8.0-2ed8dfabb690ff337a5797129f2cd92902b0c87b  -->
-<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="factura" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="535" leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20" uuid="a2f8c5f9-2222-4e9b-8eaa-3f460b5729d2">
-	<parameter name="LOGO" class="java.awt.Image" isForPrompting="false"/>
-	<parameter name="INVOICE_NUMBER" class="java.lang.String"/>
-	<parameter name="ISSUE_DATE" class="java.time.LocalDate"/>
-	<parameter name="ISSUER_NAME" class="java.lang.String"/>
-	<parameter name="ISSUER_NIF" class="java.lang.String"/>
-	<parameter name="ISSUER_ADDRESS" class="java.lang.String"/>
-	<parameter name="ISSUER_ACCOUNT" class="java.lang.String"/>
-	<parameter name="CUSTOMER_NAME" class="java.lang.String"/>
-	<parameter name="CUSTOMER_NIF" class="java.lang.String"/>
-	<parameter name="CUSTOMER_ADDRESS" class="java.lang.String"/>
-	<parameter name="VAT_PERCENT" class="java.math.BigDecimal"/>
-	<parameter name="SUBTOTAL" class="java.math.BigDecimal"/>
-	<parameter name="DISCOUNT_TOTAL" class="java.math.BigDecimal"/>
-	<parameter name="VAT_AMOUNT" class="java.math.BigDecimal"/>
-	<parameter name="GRAND_TOTAL" class="java.math.BigDecimal"/>
-	<parameter name="HAS_DISCOUNTS" class="java.lang.Boolean"/>
-	<parameter name="SPLIT_LINES" class="java.lang.Boolean"/>
-	<field name="description" class="java.lang.String"/>
-	<field name="quantity" class="java.math.BigDecimal"/>
-	<field name="unitPrice" class="java.math.BigDecimal"/>
-	<field name="discountPercent" class="java.math.BigDecimal"/>
-	<field name="total" class="java.math.BigDecimal"/>
-	<field name="category" class="models.LineCategory"/>
-	<field name="titleRow" class="java.lang.Boolean"/>
-	<group name="LineCategory" isReprintHeaderOnEachPage="true" keepTogether="true">
-		<groupExpression><![CDATA[$F{category}]]></groupExpression>
+<?xml version='1.0' encoding='UTF-8'?>
+<jasperReport name="factura" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="535" leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20" uuid="a2f8c5f9-2222-4e9b-8eaa-3f460b5729d2">
+	<parameter name="LOGO" class="java.awt.Image" forPrompting="false" />
+	<parameter name="INVOICE_NUMBER" class="java.lang.String" />
+	<parameter name="ISSUE_DATE" class="java.time.LocalDate" />
+	<parameter name="ISSUER_NAME" class="java.lang.String" />
+	<parameter name="ISSUER_NIF" class="java.lang.String" />
+	<parameter name="ISSUER_ADDRESS" class="java.lang.String" />
+	<parameter name="ISSUER_ACCOUNT" class="java.lang.String" />
+	<parameter name="CUSTOMER_NAME" class="java.lang.String" />
+	<parameter name="CUSTOMER_NIF" class="java.lang.String" />
+	<parameter name="CUSTOMER_ADDRESS" class="java.lang.String" />
+	<parameter name="VAT_PERCENT" class="java.math.BigDecimal" />
+	<parameter name="SUBTOTAL" class="java.math.BigDecimal" />
+	<parameter name="DISCOUNT_TOTAL" class="java.math.BigDecimal" />
+	<parameter name="VAT_AMOUNT" class="java.math.BigDecimal" />
+	<parameter name="GRAND_TOTAL" class="java.math.BigDecimal" />
+	<parameter name="HAS_DISCOUNTS" class="java.lang.Boolean" />
+	<parameter name="SPLIT_LINES" class="java.lang.Boolean" />
+	<field name="description" class="java.lang.String" />
+	<field name="quantity" class="java.math.BigDecimal" />
+	<field name="unitPrice" class="java.math.BigDecimal" />
+	<field name="discountPercent" class="java.math.BigDecimal" />
+	<field name="total" class="java.math.BigDecimal" />
+	<field name="category" class="models.LineCategory" />
+	<field name="titleRow" class="java.lang.Boolean" />
+	<group name="LineCategory" reprintHeaderOnEachPage="true" keepTogether="true">
+		<expression>$F{category}</expression>
 		<groupHeader>
 			<band height="25">
-				<property name="com.jaspersoft.studio.unit.height" value="px"/>
-				<printWhenExpression><![CDATA[$P{SPLIT_LINES} == true]]></printWhenExpression>
-				<textField>
-					<reportElement mode="Opaque" x="0" y="0" width="535" height="18" backcolor="#F0EDED" uuid="5ad3dbef-19ea-4121-9d08-04d3278c5b5c"/>
-					<textElement verticalAlignment="Middle">
-						<font isBold="true"/>
-					</textElement>
-					<textFieldExpression><![CDATA[$F{category} == null ? "" : $F{category}.toString()]]></textFieldExpression>
-				</textField>
+				<property name="com.jaspersoft.studio.unit.height" value="px" />
+				<printWhenExpression>$P{SPLIT_LINES} == true</printWhenExpression>
+				<element kind="textField" mode="Opaque" x="0" y="0" width="535" height="18" backcolor="#F0EDED" uuid="5ad3dbef-19ea-4121-9d08-04d3278c5b5c" vTextAlign="Middle" bold="true">
+					<expression>$F{category} == null ? "" : $F{category}.toString()</expression>
+				</element>
 			</band>
 		</groupHeader>
 	</group>
-	<title>
-		<band height="215">
-			<staticText>
-				<reportElement x="335" y="5" width="200" height="25" uuid="3d6bb38f-8ed6-4309-9d8e-e7f4e4a45d03">
-					<property name="com.jaspersoft.studio.unit.height" value="px"/>
-				</reportElement>
-				<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="3"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font size="19" isBold="true"/>
-				</textElement>
-				<text><![CDATA[Factura]]></text>
-			</staticText>
-			<textField>
-				<reportElement x="335" y="30" width="200" height="16" uuid="4c5c2c31-4c08-4cc0-82c8-7bca8ef8e3a2"/>
-				<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="3"/>
-				<textElement textAlignment="Right"/>
-				<textFieldExpression><![CDATA["Num. " + String.valueOf($P{INVOICE_NUMBER})]]></textFieldExpression>
-			</textField>
-			<textField pattern="dd/MM/yyyy">
-				<reportElement x="335" y="46" width="200" height="16" uuid="c2ef0c34-4a6a-4a03-9db9-68a680ae5c1a"/>
-				<box topPadding="0" bottomPadding="0" rightPadding="3"/>
-				<textElement textAlignment="Right"/>
-				<textFieldExpression><![CDATA[$P{ISSUE_DATE} == null ? "" : $P{ISSUE_DATE}.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy", new java.util.Locale("es","ES")))]]></textFieldExpression>
-			</textField>
-			<image hAlign="Left" onErrorType="Blank">
-				<reportElement x="0" y="-10" width="270" height="111" uuid="0f5c1c64-4d5b-43b0-bb63-1f9b6aef5dc6"/>
-				<imageExpression><![CDATA[$P{LOGO}]]></imageExpression>
-			</image>
-			<frame>
-				<reportElement x="0" y="87" width="260" height="118" uuid="2e7d71b3-6533-42d8-9b4e-7bd32d96d681">
-					<property name="com.jaspersoft.studio.unit.y" value="px"/>
-				</reportElement>
-				<staticText>
-					<reportElement x="0" y="0" width="260" height="14" uuid="b0a74cc3-98a8-48b4-8ef0-2f9934c29b0c"/>
-					<box leftPadding="3">
-						<bottomPen lineWidth="0.5"/>
-					</box>
-					<textElement>
-						<font isBold="true"/>
-					</textElement>
-					<text><![CDATA[Emisor]]></text>
-				</staticText>
-				<textField>
-					<reportElement x="0" y="16" width="260" height="14" uuid="adf4fa03-b8a7-4c6a-8a94-9bde78d1e9c6"/>
-					<box leftPadding="3"/>
-					<textFieldExpression><![CDATA[String.valueOf($P{ISSUER_NAME})]]></textFieldExpression>
-				</textField>
-				<textField>
-					<reportElement x="0" y="32" width="260" height="14" uuid="9f97b0ad-f0c3-4c94-8f3b-ec2b7dd4af3c"/>
-					<box leftPadding="3"/>
-					<textFieldExpression><![CDATA["NIF: " + String.valueOf($P{ISSUER_NIF})]]></textFieldExpression>
-				</textField>
-				<textField isStretchWithOverflow="true">
-					<reportElement positionType="Float" x="0" y="48" width="260" height="32" uuid="b22c5fb2-9b7e-4065-8cfb-64c3c6d2f8a3"/>
-					<box leftPadding="3"/>
-					<textFieldExpression><![CDATA[String.valueOf($P{ISSUER_ADDRESS})]]></textFieldExpression>
-				</textField>
-				<textField>
-					<reportElement positionType="Float" x="0" y="84" width="260" height="14" uuid="7bce2d1a-0f5b-4a47-a2b9-91f22d712f66"/>
-					<box leftPadding="3"/>
-					<textFieldExpression><![CDATA["Cuenta: " + String.valueOf($P{ISSUER_ACCOUNT})]]></textFieldExpression>
-				</textField>
-			</frame>
-			<frame>
-				<reportElement x="275" y="87" width="260" height="118" uuid="4f51f733-9b4f-4c24-ae6f-ef1cdd6c9f0a">
-					<property name="com.jaspersoft.studio.unit.y" value="px"/>
-				</reportElement>
-				<staticText>
-					<reportElement x="0" y="0" width="260" height="14" uuid="75dcf4f8-22c8-4f1f-9f2b-6937aef7bf89"/>
-					<box leftPadding="3">
-						<bottomPen lineWidth="0.5"/>
-					</box>
-					<textElement>
-						<font isBold="true"/>
-					</textElement>
-					<text><![CDATA[Cliente]]></text>
-				</staticText>
-				<textField>
-					<reportElement x="0" y="16" width="260" height="14" uuid="94e1b149-9c3d-40d9-9f6b-d2b6665bc6a5"/>
-					<box leftPadding="3"/>
-					<textFieldExpression><![CDATA[String.valueOf($P{CUSTOMER_NAME})]]></textFieldExpression>
-				</textField>
-				<textField>
-					<reportElement x="0" y="32" width="260" height="14" uuid="0f6ae7d0-1353-45c6-9d10-1422c05f7e77"/>
-					<box leftPadding="3"/>
-					<textFieldExpression><![CDATA["NIF: " + String.valueOf($P{CUSTOMER_NIF})]]></textFieldExpression>
-				</textField>
-				<textField isStretchWithOverflow="true">
-					<reportElement positionType="Float" x="0" y="48" width="260" height="70" uuid="f1cc6c2b-67b3-4c3a-9ef2-2bc7a33d8102"/>
-					<box leftPadding="3"/>
-					<textFieldExpression><![CDATA[String.valueOf($P{CUSTOMER_ADDRESS})]]></textFieldExpression>
-				</textField>
-			</frame>
-		</band>
-	</title>
-	<columnHeader>
-		<band height="25">
-			<property name="com.jaspersoft.studio.unit.height" value="px"/>
-			<staticText>
-				<reportElement x="0" y="0" width="535" height="18" uuid="a46074d3-013a-4e8f-975f-cda46b0b7e61"/>
-				<box>
-					<bottomPen lineWidth="0.5"/>
+	<title height="215">
+		<element kind="staticText" x="335" y="5" width="200" height="25" uuid="3d6bb38f-8ed6-4309-9d8e-e7f4e4a45d03" hTextAlign="Right" vTextAlign="Middle" fontSize="19" bold="true">
+			<property name="com.jaspersoft.studio.unit.height" value="px" />
+			<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="3" />
+			<text>Factura</text>
+		</element>
+		<element kind="textField" x="335" y="30" width="200" height="16" uuid="4c5c2c31-4c08-4cc0-82c8-7bca8ef8e3a2" hTextAlign="Right">
+			<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="3" />
+			<expression>"Num. " + String.valueOf($P{INVOICE_NUMBER})</expression>
+		</element>
+		<element kind="textField" pattern="dd/MM/yyyy" x="335" y="46" width="200" height="16" uuid="c2ef0c34-4a6a-4a03-9db9-68a680ae5c1a" hTextAlign="Right">
+			<box topPadding="0" bottomPadding="0" rightPadding="3" />
+			<expression>$P{ISSUE_DATE} == null ? "" : $P{ISSUE_DATE}.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy", new java.util.Locale("es","ES")))</expression>
+		</element>
+		<element kind="image" hImageAlign="Left" onErrorType="Blank" x="0" y="-10" width="270" height="111" uuid="0f5c1c64-4d5b-43b0-bb63-1f9b6aef5dc6">
+			<expression>$P{LOGO}</expression>
+		</element>
+		<element kind="frame" x="0" y="87" width="260" height="118" uuid="2e7d71b3-6533-42d8-9b4e-7bd32d96d681">
+			<property name="com.jaspersoft.studio.unit.y" value="px" />
+			<element kind="staticText" x="0" y="0" width="260" height="14" uuid="b0a74cc3-98a8-48b4-8ef0-2f9934c29b0c" bold="true">
+				<box leftPadding="3">
+					<bottomPen lineWidth="0.5" />
 				</box>
-				<textElement verticalAlignment="Middle">
-					<font isBold="true"/>
-				</textElement>
-				<text><![CDATA[Descripci\u00f3n]]></text>
-			</staticText>
-			<staticText>
-				<reportElement x="245" y="0" width="60" height="18" uuid="20ac5f08-06a3-4a48-8d2f-2b94e87bfeaa"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font isBold="true"/>
-				</textElement>
-				<text><![CDATA[Cant\.]]></text>
-			</staticText>
-			<staticText>
-				<reportElement x="305" y="0" width="80" height="18" uuid="00cc4456-2d29-4b0a-9e5b-7aa25f41a24d"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font isBold="true"/>
-				</textElement>
-				<text><![CDATA[Precio]]></text>
-			</staticText>
-			<staticText>
-				<reportElement x="385" y="0" width="70" height="18" uuid="dad10a59-4e52-4c59-9af0-1483b3a9a71a">
-					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == true]]></printWhenExpression>
-				</reportElement>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font isBold="true"/>
-				</textElement>
-				<text><![CDATA[Dto %]]></text>
-			</staticText>
-			<staticText>
-				<reportElement x="455" y="0" width="80" height="18" uuid="f1cd8c82-7a26-4c1c-8d73-13ff5b7f8d53">
-					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == true]]></printWhenExpression>
-				</reportElement>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font isBold="true"/>
-				</textElement>
-				<text><![CDATA[Total]]></text>
-			</staticText>
-			<staticText>
-				<reportElement x="385" y="0" width="150" height="18" uuid="52b5ea78-b9c2-4e0b-9c2b-1e65e1e3fb63">
-					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == false]]></printWhenExpression>
-				</reportElement>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font isBold="true"/>
-				</textElement>
-				<text><![CDATA[Total]]></text>
-			</staticText>
-		</band>
+				<text>Emisor</text>
+			</element>
+			<element kind="textField" x="0" y="16" width="260" height="14" uuid="adf4fa03-b8a7-4c6a-8a94-9bde78d1e9c6">
+				<box leftPadding="3" />
+				<expression>String.valueOf($P{ISSUER_NAME})</expression>
+			</element>
+			<element kind="textField" x="0" y="32" width="260" height="14" uuid="9f97b0ad-f0c3-4c94-8f3b-ec2b7dd4af3c">
+				<box leftPadding="3" />
+				<expression>"NIF: " + String.valueOf($P{ISSUER_NIF})</expression>
+			</element>
+			<element kind="textField" textAdjust="StretchHeight" positionType="Float" x="0" y="48" width="260" height="32" uuid="b22c5fb2-9b7e-4065-8cfb-64c3c6d2f8a3">
+				<box leftPadding="3" />
+				<expression>String.valueOf($P{ISSUER_ADDRESS})</expression>
+			</element>
+			<element kind="textField" positionType="Float" x="0" y="84" width="260" height="14" uuid="7bce2d1a-0f5b-4a47-a2b9-91f22d712f66">
+				<box leftPadding="3" />
+				<expression>"Cuenta: " + String.valueOf($P{ISSUER_ACCOUNT})</expression>
+			</element>
+		</element>
+		<element kind="frame" x="275" y="87" width="260" height="118" uuid="4f51f733-9b4f-4c24-ae6f-ef1cdd6c9f0a">
+			<property name="com.jaspersoft.studio.unit.y" value="px" />
+			<element kind="staticText" x="0" y="0" width="260" height="14" uuid="75dcf4f8-22c8-4f1f-9f2b-6937aef7bf89" bold="true">
+				<box leftPadding="3">
+					<bottomPen lineWidth="0.5" />
+				</box>
+				<text>Cliente</text>
+			</element>
+			<element kind="textField" x="0" y="16" width="260" height="14" uuid="94e1b149-9c3d-40d9-9f6b-d2b6665bc6a5">
+				<box leftPadding="3" />
+				<expression>String.valueOf($P{CUSTOMER_NAME})</expression>
+			</element>
+			<element kind="textField" x="0" y="32" width="260" height="14" uuid="0f6ae7d0-1353-45c6-9d10-1422c05f7e77">
+				<box leftPadding="3" />
+				<expression>"NIF: " + String.valueOf($P{CUSTOMER_NIF})</expression>
+			</element>
+			<element kind="textField" textAdjust="StretchHeight" positionType="Float" x="0" y="48" width="260" height="70" uuid="f1cc6c2b-67b3-4c3a-9ef2-2bc7a33d8102">
+				<box leftPadding="3" />
+				<expression>String.valueOf($P{CUSTOMER_ADDRESS})</expression>
+			</element>
+		</element>
+	</title>
+	<columnHeader height="25">
+		<property name="com.jaspersoft.studio.unit.height" value="px" />
+		<element kind="staticText" x="0" y="0" width="535" height="18" uuid="a46074d3-013a-4e8f-975f-cda46b0b7e61" vTextAlign="Middle" bold="true">
+			<box>
+				<bottomPen lineWidth="0.5" />
+			</box>
+			<text>Descripción</text>
+		</element>
+		<element kind="staticText" x="245" y="0" width="60" height="18" uuid="20ac5f08-06a3-4a48-8d2f-2b94e87bfeaa" hTextAlign="Right" vTextAlign="Middle" bold="true">
+			<text>Cant.</text>
+		</element>
+		<element kind="staticText" x="305" y="0" width="80" height="18" uuid="00cc4456-2d29-4b0a-9e5b-7aa25f41a24d" hTextAlign="Right" vTextAlign="Middle" bold="true">
+			<text>Precio</text>
+		</element>
+		<element kind="staticText" x="385" y="0" width="70" height="18" uuid="dad10a59-4e52-4c59-9af0-1483b3a9a71a" hTextAlign="Right" vTextAlign="Middle" bold="true">
+			<printWhenExpression>$P{HAS_DISCOUNTS} == true</printWhenExpression>
+			<text>Dto %</text>
+		</element>
+		<element kind="staticText" x="455" y="0" width="80" height="18" uuid="f1cd8c82-7a26-4c1c-8d73-13ff5b7f8d53" hTextAlign="Right" vTextAlign="Middle" bold="true">
+			<printWhenExpression>$P{HAS_DISCOUNTS} == true</printWhenExpression>
+			<text>Total</text>
+		</element>
+		<element kind="staticText" x="385" y="0" width="150" height="18" uuid="52b5ea78-b9c2-4e0b-9c2b-1e65e1e3fb63" hTextAlign="Right" vTextAlign="Middle" bold="true">
+			<printWhenExpression>$P{HAS_DISCOUNTS} == false</printWhenExpression>
+			<text>Total</text>
+		</element>
 	</columnHeader>
 	<detail>
 		<band height="20" splitType="Stretch">
-			<property name="com.jaspersoft.studio.unit.height" value="px"/>
-			<printWhenExpression><![CDATA[$F{titleRow} == null || $F{titleRow} == false]]></printWhenExpression>
-			<textField isStretchWithOverflow="true">
-				<reportElement x="0" y="0" width="245" height="18" uuid="8c7c3c9f-0b8a-4710-9ecb-0b38c5b2a704"/>
-				<textElement verticalAlignment="Middle"/>
-				<textFieldExpression><![CDATA[$F{description}]]></textFieldExpression>
-			</textField>
-			<textField pattern="#,##0.##">
-				<reportElement x="245" y="0" width="60" height="18" uuid="3222a0bb-92a9-4cb5-9d85-4c9a3b2dfc6e"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle"/>
-				<textFieldExpression><![CDATA[$F{quantity}]]></textFieldExpression>
-			</textField>
-			<textField pattern="#,##0.00">
-				<reportElement x="305" y="0" width="80" height="18" uuid="3c58225e-92c0-4a62-98ad-62034629e248"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle"/>
-				<textFieldExpression><![CDATA[$F{unitPrice}]]></textFieldExpression>
-			</textField>
-			<textField pattern="#,##0.##">
-				<reportElement x="385" y="0" width="70" height="18" uuid="f676eb0c-2c43-41b4-9c7a-6a49eae2f9a3">
-					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == true]]></printWhenExpression>
-				</reportElement>
-				<textElement textAlignment="Right" verticalAlignment="Middle"/>
-				<textFieldExpression><![CDATA[$F{discountPercent}]]></textFieldExpression>
-			</textField>
-			<textField pattern="#,##0.00">
-				<reportElement x="455" y="0" width="80" height="18" uuid="2c1d8ab4-60f5-4b60-9f56-07e4b6461d47">
-					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == true]]></printWhenExpression>
-				</reportElement>
-				<textElement textAlignment="Right" verticalAlignment="Middle"/>
-				<textFieldExpression><![CDATA[$F{total}]]></textFieldExpression>
-			</textField>
-			<textField pattern="#,##0.00">
-				<reportElement x="385" y="0" width="150" height="18" uuid="4eec9c6c-19d6-4b3c-9ea6-0b59f164c9e3">
-					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == false]]></printWhenExpression>
-				</reportElement>
-				<textElement textAlignment="Right" verticalAlignment="Middle"/>
-				<textFieldExpression><![CDATA[$F{total}]]></textFieldExpression>
-			</textField>
+			<property name="com.jaspersoft.studio.unit.height" value="px" />
+			<printWhenExpression>$F{titleRow} == null || $F{titleRow} == false</printWhenExpression>
+			<element kind="textField" textAdjust="StretchHeight" x="0" y="0" width="245" height="18" uuid="8c7c3c9f-0b8a-4710-9ecb-0b38c5b2a704" vTextAlign="Middle">
+				<expression>$F{description}</expression>
+			</element>
+			<element kind="textField" pattern="#,##0.##" x="245" y="0" width="60" height="18" uuid="3222a0bb-92a9-4cb5-9d85-4c9a3b2dfc6e" hTextAlign="Right" vTextAlign="Middle">
+				<expression>$F{quantity}</expression>
+			</element>
+			<element kind="textField" pattern="#,##0.00" x="305" y="0" width="80" height="18" uuid="3c58225e-92c0-4a62-98ad-62034629e248" hTextAlign="Right" vTextAlign="Middle">
+				<expression>$F{unitPrice}</expression>
+			</element>
+			<element kind="textField" pattern="#,##0.##" x="385" y="0" width="70" height="18" uuid="f676eb0c-2c43-41b4-9c7a-6a49eae2f9a3" hTextAlign="Right" vTextAlign="Middle">
+				<printWhenExpression>$P{HAS_DISCOUNTS} == true</printWhenExpression>
+				<expression>$F{discountPercent}</expression>
+			</element>
+			<element kind="textField" pattern="#,##0.00" x="455" y="0" width="80" height="18" uuid="2c1d8ab4-60f5-4b60-9f56-07e4b6461d47" hTextAlign="Right" vTextAlign="Middle">
+				<printWhenExpression>$P{HAS_DISCOUNTS} == true</printWhenExpression>
+				<expression>$F{total}</expression>
+			</element>
+			<element kind="textField" pattern="#,##0.00" x="385" y="0" width="150" height="18" uuid="4eec9c6c-19d6-4b3c-9ea6-0b59f164c9e3" hTextAlign="Right" vTextAlign="Middle">
+				<printWhenExpression>$P{HAS_DISCOUNTS} == false</printWhenExpression>
+				<expression>$F{total}</expression>
+			</element>
 		</band>
 		<band height="18">
-			<printWhenExpression><![CDATA[$F{titleRow} == true]]></printWhenExpression>
-			<textField isStretchWithOverflow="true">
-				<reportElement mode="Opaque" x="0" y="0" width="535" height="18" backcolor="#F0EDED" uuid="f2d32a51-61b5-4f5d-9a6c-d5a3fe1b01c6"/>
-				<textElement verticalAlignment="Middle">
-					<font isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{description}]]></textFieldExpression>
-			</textField>
+			<printWhenExpression>$F{titleRow} == true</printWhenExpression>
+			<element kind="textField" textAdjust="StretchHeight" mode="Opaque" x="0" y="0" width="535" height="18" backcolor="#F0EDED" uuid="f2d32a51-61b5-4f5d-9a6c-d5a3fe1b01c6" vTextAlign="Middle" bold="true">
+				<expression>$F{description}</expression>
+			</element>
 		</band>
 	</detail>
-	<pageFooter>
-		<band height="95">
-			<property name="com.jaspersoft.studio.unit.height" value="px"/>
-			<frame>
-				<reportElement x="170" y="16" width="365" height="40" uuid="1912cc72-cee2-48cb-9c5a-74e26f3bfc69">
-					<property name="com.jaspersoft.studio.unit.width" value="px"/>
-					<property name="com.jaspersoft.studio.unit.height" value="px"/>
-					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == true]]></printWhenExpression>
-				</reportElement>
-				<box>
-					<pen lineWidth="0.5"/>
-				</box>
-				<staticText>
-					<reportElement x="0" y="0" width="90" height="20" uuid="d86ebdd3-75d5-4cf9-9f0d-2f4a2e68f73e"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle">
-						<font isBold="true"/>
-					</textElement>
-					<text><![CDATA[Subtotal]]></text>
-				</staticText>
-				<staticText>
-					<reportElement x="90" y="0" width="90" height="20" uuid="c1c47c47-d6d2-4a3d-8db7-70492b0bf5b3">
-						<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == true]]></printWhenExpression>
-					</reportElement>
-					<textElement textAlignment="Center" verticalAlignment="Middle">
-						<font isBold="true"/>
-					</textElement>
-					<text><![CDATA[Descuento]]></text>
-				</staticText>
-				<textField>
-					<reportElement x="180" y="0" width="90" height="20" uuid="a0b8fe1a-0f5f-4d37-9a22-9c9a2b4f51e6"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle">
-						<font isBold="true"/>
-					</textElement>
-					<textFieldExpression><![CDATA["IVA (" + String.valueOf($P{VAT_PERCENT}) + "%)"]]></textFieldExpression>
-				</textField>
-				<staticText>
-					<reportElement x="270" y="0" width="95" height="20" uuid="2a1a1b95-8c04-49f1-987d-4b4793b64d8f"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle">
-						<font isBold="true"/>
-					</textElement>
-					<text><![CDATA[Total]]></text>
-				</staticText>
-				<textField pattern="#,##0.00">
-					<reportElement x="0" y="20" width="90" height="20" uuid="ef6a1771-2e1d-42b1-bbc1-91d9f78f1669"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle"/>
-					<textFieldExpression><![CDATA[$P{SUBTOTAL}]]></textFieldExpression>
-				</textField>
-				<textField pattern="#,##0.00">
-					<reportElement x="90" y="20" width="90" height="20" uuid="0cf8c9e7-9c7b-4ec4-9dcb-0cdd9b6bfe55">
-					</reportElement>
-					<textElement textAlignment="Center" verticalAlignment="Middle"/>
-					<textFieldExpression><![CDATA[$P{DISCOUNT_TOTAL}]]></textFieldExpression>
-				</textField>
-				<textField pattern="#,##0.00">
-					<reportElement x="180" y="20" width="90" height="20" uuid="2aef5f1a-0e36-4c4c-a82a-2df7d7b8a4d8">
-						<property name="com.jaspersoft.studio.unit.x" value="px"/>
-					</reportElement>
-					<textElement textAlignment="Center" verticalAlignment="Middle"/>
-					<textFieldExpression><![CDATA[$P{VAT_AMOUNT}]]></textFieldExpression>
-				</textField>
-				<textField pattern="#,##0.00">
-					<reportElement x="270" y="20" width="95" height="20" uuid="b6f2d188-8c4d-48e6-9a38-4d0a00f5e2f2"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle"/>
-				<textFieldExpression><![CDATA[$P{GRAND_TOTAL}]]></textFieldExpression>
-			</textField>
-		</frame>
-		<textField>
-			<reportElement x="170" y="60" width="365" height="14" uuid="1cc0d31f-a1c4-4d2a-93d1-b24ddc803db7">
-				<printWhenExpression><![CDATA[$P{ISSUER_ACCOUNT} != null && !$P{ISSUER_ACCOUNT}.trim().isEmpty()]]></printWhenExpression>
-			</reportElement>
-			<box leftPadding="3"/>
-			<textElement textAlignment="Left" verticalAlignment="Middle"/>
-			<textFieldExpression><![CDATA["Cuenta: " + String.valueOf($P{ISSUER_ACCOUNT})]]></textFieldExpression>
-		</textField>
-			<frame>
-				<reportElement x="170" y="16" width="365" height="40" uuid="eaecc5cb-2ea7-4ef7-a1d2-0d6999a09c03">
-					<property name="com.jaspersoft.studio.unit.width" value="px"/>
-					<property name="com.jaspersoft.studio.unit.height" value="px"/>
-					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == false]]></printWhenExpression>
-				</reportElement>
-				<box>
-					<pen lineWidth="0.5"/>
-				</box>
-				<staticText>
-					<reportElement x="0" y="0" width="120" height="20" uuid="41a20dc8-6e72-487b-b03b-b8d5c7c1a67e"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle">
-						<font isBold="true"/>
-					</textElement>
-					<text><![CDATA[Subtotal]]></text>
-				</staticText>
-				<textField>
-					<reportElement x="120" y="0" width="120" height="20" uuid="71eb0882-1f84-461a-9ad6-2480d15c5290"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle">
-						<font isBold="true"/>
-					</textElement>
-					<textFieldExpression><![CDATA["IVA (" + String.valueOf($P{VAT_PERCENT}) + "%)"]]></textFieldExpression>
-				</textField>
-				<staticText>
-					<reportElement x="240" y="0" width="125" height="20" uuid="cde58f6e-7779-49a5-a383-f45eeedbcb4d"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle">
-						<font isBold="true"/>
-					</textElement>
-					<text><![CDATA[Total]]></text>
-				</staticText>
-				<textField pattern="#,##0.00">
-					<reportElement x="0" y="20" width="120" height="20" uuid="0d08e4b3-9538-4f1f-9b9b-38a3b0d93711"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle"/>
-					<textFieldExpression><![CDATA[$P{SUBTOTAL}]]></textFieldExpression>
-				</textField>
-				<textField pattern="#,##0.00">
-					<reportElement x="120" y="20" width="120" height="20" uuid="b64fbcfd-1df1-4e91-a3f4-b7050fd83b83"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle"/>
-					<textFieldExpression><![CDATA[$P{VAT_AMOUNT}]]></textFieldExpression>
-				</textField>
-				<textField pattern="#,##0.00">
-					<reportElement x="240" y="20" width="125" height="20" uuid="2aa4109b-275c-4adf-95df-1a2e5c370901"/>
-					<textElement textAlignment="Center" verticalAlignment="Middle"/>
-					<textFieldExpression><![CDATA[$P{GRAND_TOTAL}]]></textFieldExpression>
-				</textField>
-			</frame>
-			<textField>
-				<reportElement x="170" y="60" width="365" height="14" uuid="53f4f9dd-8f55-4f4c-9a6b-9cceae4a4edc">
-					<printWhenExpression><![CDATA[$P{ISSUER_ACCOUNT} != null && !$P{ISSUER_ACCOUNT}.trim().isEmpty()]]></printWhenExpression>
-				</reportElement>
-				<box leftPadding="3"/>
-				<textElement textAlignment="Left" verticalAlignment="Middle"/>
-				<textFieldExpression><![CDATA["Cuenta: " + String.valueOf($P{ISSUER_ACCOUNT})]]></textFieldExpression>
-			</textField>
-		</band>
-	</pageFooter>
+	<summary height="95">
+		<property name="com.jaspersoft.studio.unit.height" value="px" />
+		<element kind="frame" x="170" y="16" width="365" height="40" uuid="1912cc72-cee2-48cb-9c5a-74e26f3bfc69">
+			<property name="com.jaspersoft.studio.unit.width" value="px" />
+			<property name="com.jaspersoft.studio.unit.height" value="px" />
+			<printWhenExpression>$P{HAS_DISCOUNTS} == true</printWhenExpression>
+			<box>
+				<pen lineWidth="0.5" />
+			</box>
+			<element kind="staticText" x="0" y="0" width="90" height="20" uuid="d86ebdd3-75d5-4cf9-9f0d-2f4a2e68f73e" hTextAlign="Center" vTextAlign="Middle" bold="true">
+				<text>Subtotal</text>
+			</element>
+			<element kind="staticText" x="90" y="0" width="90" height="20" uuid="c1c47c47-d6d2-4a3d-8db7-70492b0bf5b3" hTextAlign="Center" vTextAlign="Middle" bold="true">
+				<printWhenExpression>$P{HAS_DISCOUNTS} == true</printWhenExpression>
+				<text>Descuento</text>
+			</element>
+			<element kind="textField" x="180" y="0" width="90" height="20" uuid="a0b8fe1a-0f5f-4d37-9a22-9c9a2b4f51e6" hTextAlign="Center" vTextAlign="Middle" bold="true">
+				<expression>"IVA (" + String.valueOf($P{VAT_PERCENT}) + "%)"</expression>
+			</element>
+			<element kind="staticText" x="270" y="0" width="95" height="20" uuid="2a1a1b95-8c04-49f1-987d-4b4793b64d8f" hTextAlign="Center" vTextAlign="Middle" bold="true">
+				<text>Total</text>
+			</element>
+			<element kind="textField" pattern="#,##0.00" x="0" y="20" width="90" height="20" uuid="ef6a1771-2e1d-42b1-bbc1-91d9f78f1669" hTextAlign="Center" vTextAlign="Middle">
+				<expression>$P{SUBTOTAL}</expression>
+			</element>
+			<element kind="textField" pattern="#,##0.00" x="90" y="20" width="90" height="20" uuid="0cf8c9e7-9c7b-4ec4-9dcb-0cdd9b6bfe55" hTextAlign="Center" vTextAlign="Middle">
+				<expression>$P{DISCOUNT_TOTAL}</expression>
+			</element>
+			<element kind="textField" pattern="#,##0.00" x="180" y="20" width="90" height="20" uuid="2aef5f1a-0e36-4c4c-a82a-2df7d7b8a4d8" hTextAlign="Center" vTextAlign="Middle">
+				<property name="com.jaspersoft.studio.unit.x" value="px" />
+				<expression>$P{VAT_AMOUNT}</expression>
+			</element>
+			<element kind="textField" pattern="#,##0.00" x="270" y="20" width="95" height="20" uuid="b6f2d188-8c4d-48e6-9a38-4d0a00f5e2f2" hTextAlign="Center" vTextAlign="Middle">
+				<expression>$P{GRAND_TOTAL}</expression>
+			</element>
+		</element>
+		<element kind="textField" x="170" y="60" width="365" height="14" uuid="1cc0d31f-a1c4-4d2a-93d1-b24ddc803db7" hTextAlign="Left" vTextAlign="Middle">
+			<printWhenExpression>$P{ISSUER_ACCOUNT} != null &amp;&amp; !$P{ISSUER_ACCOUNT}.trim().isEmpty()</printWhenExpression>
+			<box leftPadding="3" />
+			<expression>"Cuenta: " + String.valueOf($P{ISSUER_ACCOUNT})</expression>
+		</element>
+		<element kind="frame" x="170" y="16" width="365" height="40" uuid="eaecc5cb-2ea7-4ef7-a1d2-0d6999a09c03">
+			<property name="com.jaspersoft.studio.unit.width" value="px" />
+			<property name="com.jaspersoft.studio.unit.height" value="px" />
+			<printWhenExpression>$P{HAS_DISCOUNTS} == false</printWhenExpression>
+			<box>
+				<pen lineWidth="0.5" />
+			</box>
+			<element kind="staticText" x="0" y="0" width="120" height="20" uuid="41a20dc8-6e72-487b-b03b-b8d5c7c1a67e" hTextAlign="Center" vTextAlign="Middle" bold="true">
+				<text>Subtotal</text>
+			</element>
+			<element kind="textField" x="120" y="0" width="120" height="20" uuid="71eb0882-1f84-461a-9ad6-2480d15c5290" hTextAlign="Center" vTextAlign="Middle" bold="true">
+				<expression>"IVA (" + String.valueOf($P{VAT_PERCENT}) + "%)"</expression>
+			</element>
+			<element kind="staticText" x="240" y="0" width="125" height="20" uuid="cde58f6e-7779-49a5-a383-f45eeedbcb4d" hTextAlign="Center" vTextAlign="Middle" bold="true">
+				<text>Total</text>
+			</element>
+			<element kind="textField" pattern="#,##0.00" x="0" y="20" width="120" height="20" uuid="0d08e4b3-9538-4f1f-9b9b-38a3b0d93711" hTextAlign="Center" vTextAlign="Middle">
+				<expression>$P{SUBTOTAL}</expression>
+			</element>
+			<element kind="textField" pattern="#,##0.00" x="120" y="20" width="120" height="20" uuid="b64fbcfd-1df1-4e91-a3f4-b7050fd83b83" hTextAlign="Center" vTextAlign="Middle">
+				<expression>$P{VAT_AMOUNT}</expression>
+			</element>
+			<element kind="textField" pattern="#,##0.00" x="240" y="20" width="125" height="20" uuid="2aa4109b-275c-4adf-95df-1a2e5c370901" hTextAlign="Center" vTextAlign="Middle">
+				<expression>$P{GRAND_TOTAL}</expression>
+			</element>
+		</element>
+		<element kind="textField" x="170" y="60" width="365" height="14" uuid="53f4f9dd-8f55-4f4c-9a6b-9cceae4a4edc" hTextAlign="Left" vTextAlign="Middle">
+			<printWhenExpression>$P{ISSUER_ACCOUNT} != null &amp;&amp; !$P{ISSUER_ACCOUNT}.trim().isEmpty()</printWhenExpression>
+			<box leftPadding="3" />
+			<expression>"Cuenta: " + String.valueOf($P{ISSUER_ACCOUNT})</expression>
+		</element>
+	</summary>
 </jasperReport>

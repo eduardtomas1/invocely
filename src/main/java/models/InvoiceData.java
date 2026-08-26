@@ -1,7 +1,10 @@
 package models;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -10,6 +13,7 @@ import java.util.List;
  */
 
 public class InvoiceData {
+    private static final int MONEY_SCALE = 2;
     private String invoiceNumber;
     private LocalDate issueDate;
     private String issuerName;
@@ -41,7 +45,7 @@ public class InvoiceData {
         this.customerAddress = customerAddress;
         this.vatPercent = vatPercent != null ? vatPercent : BigDecimal.ZERO;
         this.splitLines = splitLines;
-        this.lines = lines;
+        this.lines = lines == null ? null : Collections.unmodifiableList(new ArrayList<>(lines));
     }
 
     public InvoiceData(String invoiceNumber, LocalDate issueDate,
@@ -147,7 +151,7 @@ public class InvoiceData {
     public BigDecimal getVatAmount()
     {
       BigDecimal vat = nz(vatPercent);
-      return getTaxableBase().multiply(vat).divide(new BigDecimal("100"));
+      return money(getTaxableBase().multiply(vat).divide(new BigDecimal("100")));
     }
 
     public BigDecimal getGrandTotal()
@@ -163,5 +167,10 @@ public class InvoiceData {
     private BigDecimal nz(BigDecimal value)
     {
       return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private BigDecimal money(BigDecimal value)
+    {
+      return value.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 }

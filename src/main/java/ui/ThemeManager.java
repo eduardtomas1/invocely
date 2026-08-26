@@ -5,6 +5,7 @@ import com.formdev.flatlaf.themes.FlatMacLightLaf;
 import javax.swing.*;
 import java.awt.*;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -187,7 +188,7 @@ public final class ThemeManager {
     }
 
     private static Font resolveBaseFont() {
-        String os = System.getProperty("os.name", "").toLowerCase();
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String[] candidates;
         if (os.contains("mac")) {
             candidates = new String[] {"SF Pro Text", "SF Pro Display", "Helvetica Neue", "Helvetica"};

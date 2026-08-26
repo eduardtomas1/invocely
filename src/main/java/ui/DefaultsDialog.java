@@ -13,13 +13,14 @@ import javax.swing.border.TitledBorder;
 import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.math.BigDecimal;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 
 public class DefaultsDialog extends JDialog {
     private boolean saved = false;
 
-    public DefaultsDialog(Frame owner, DocumentType type, DefaultsManager defaults) {
+    public DefaultsDialog(Frame owner, DocumentType type, DefaultsManager defaults) throws IOException {
         super(owner, I18n.t("defaults.title"), true);
         setLayout(new BorderLayout(12, 12));
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -28,12 +29,10 @@ public class DefaultsDialog extends JDialog {
         JComponent form;
         if (type == DocumentType.INVOICE) {
             InvoiceDefaultsForm panel = new InvoiceDefaultsForm();
-            try {
-                InvoiceData data = defaults.loadInvoiceDefaults();
-                if (data != null) {
-                    panel.setData(data);
-                }
-            } catch (Exception ignored) { }
+            InvoiceData data = defaults.loadInvoiceDefaults();
+            if (data != null) {
+                panel.setData(data);
+            }
             form = panel;
             add(buildActions(() -> {
                 try {
@@ -46,12 +45,10 @@ public class DefaultsDialog extends JDialog {
             }), BorderLayout.SOUTH);
         } else {
             BudgetDefaultsForm panel = new BudgetDefaultsForm();
-            try {
-                BudgetData data = defaults.loadBudgetDefaults();
-                if (data != null) {
-                    panel.setData(data);
-                }
-            } catch (Exception ignored) { }
+            BudgetData data = defaults.loadBudgetDefaults();
+            if (data != null) {
+                panel.setData(data);
+            }
             form = panel;
             add(buildActions(() -> {
                 try {
@@ -133,7 +130,7 @@ public class DefaultsDialog extends JDialog {
         InvoiceData toData() {
             return new InvoiceData(
                 tfNumber.getText().trim(),
-                parseDate(tfDate.getText()),
+                InputParser.optionalDate(tfDate.getText()),
                 tfIssuerName.getText().trim(),
                 tfIssuerNif.getText().trim(),
                 tfIssuerAddr.getText().trim(),
@@ -141,7 +138,7 @@ public class DefaultsDialog extends JDialog {
                 tfCustName.getText().trim(),
                 tfCustNif.getText().trim(),
                 tfCustAddr.getText().trim(),
-                parseBD(tfVatPercent.getText()),
+                InputParser.percent(tfVatPercent.getText()),
                 cbSplit.isSelected(),
                 new ArrayList<LineItem>()
             );
@@ -207,10 +204,18 @@ public class DefaultsDialog extends JDialog {
         }
 
         BudgetData toData() {
+            LocalDate issueDate = InputParser.optionalDate(tfDate.getText());
+            LocalDate validUntil = InputParser.optionalDate(tfValid.getText());
+            if ((issueDate == null) != (validUntil == null)) {
+                throw new IllegalArgumentException(I18n.t("validation.default_dates_pair"));
+            }
+            if (issueDate != null && validUntil != null) {
+                InputParser.validDateRange(issueDate, validUntil);
+            }
             return new BudgetData(
                 tfNumber.getText().trim(),
-                parseDate(tfDate.getText()),
-                parseDate(tfValid.getText()),
+                issueDate,
+                validUntil,
                 tfSuppName.getText().trim(),
                 tfSuppNif.getText().trim(),
                 tfSuppAddr.getText().trim(),
@@ -221,7 +226,7 @@ public class DefaultsDialog extends JDialog {
                 taNotes.getText().trim(),
                 cbIncludeTotals.isSelected(),
                 tfTaxName.getText().trim(),
-                parseBD(tfTaxPercent.getText()),
+                InputParser.percent(tfTaxPercent.getText()),
                 cbSplit.isSelected(),
                 new ArrayList<LineItem>()
             );
@@ -289,29 +294,8 @@ public class DefaultsDialog extends JDialog {
         comp.setText(value != null ? value : "");
     }
 
-    private static LocalDate parseDate(String s) {
-        try {
-            if (s == null || s.isBlank()) return null;
-            String[] d = s.trim().split("/");
-            if (d.length == 3) {
-                return LocalDate.of(Integer.parseInt(d[2]), Integer.parseInt(d[1]), Integer.parseInt(d[0]));
-            }
-            return LocalDate.parse(s.trim());
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     private static String formatDate(LocalDate date) {
         return String.format("%02d/%02d/%04d", date.getDayOfMonth(), date.getMonthValue(), date.getYear());
     }
 
-    private static BigDecimal parseBD(String s) {
-        try {
-            if (s == null || s.isBlank()) return BigDecimal.ZERO;
-            return new BigDecimal(s.trim().replace(',', '.'));
-        } catch (Exception e) {
-            return BigDecimal.ZERO;
-        }
-    }
 }

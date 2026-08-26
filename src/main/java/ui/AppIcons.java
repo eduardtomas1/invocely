@@ -77,10 +77,6 @@ public final class AppIcons {
         return c != null ? c : new Color(60, 60, 60);
     }
 
-    private static Icon loadResourceIcon(String path, Icon fallback) {
-        return loadResourceIcon(path, SIZE, fallback);
-    }
-
     private static Icon loadResourceIcon(String path, int size, Icon fallback) {
         try (InputStream in = AppIcons.class.getResourceAsStream(path)) {
             if (in == null) return fallback;

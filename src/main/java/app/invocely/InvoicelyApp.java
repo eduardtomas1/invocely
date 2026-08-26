@@ -5,6 +5,7 @@ import models.BudgetData;
 import models.DocumentType;
 import models.InvoiceData;
 import report.ReportGenerator;
+import report.SafeImageLoader;
 import storage.AppPreferences;
 import storage.XmlSaver;
 import storage.DefaultsManager;
@@ -28,6 +29,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
 /**
  *
@@ -42,6 +46,8 @@ public class InvoicelyApp extends JFrame {
     private BudgetPanel  budgetPanel;
     private DocumentType activeType;
     private final DefaultsManager defaults = new DefaultsManager();
+    private final ReportGenerator reportGenerator = new ReportGenerator();
+    private boolean backgroundTaskRunning;
     private JToolBar toolbar;
     private JButton btnSaveXml;
 
@@ -64,33 +70,25 @@ public class InvoicelyApp extends JFrame {
     }
 
     private void importInvoice() {
+        if (backgroundTaskRunning) return;
         Path selected = pickOpenPath(I18n.t("menu.file.import_invoice"), "xml", AppPreferences.KEY_IMPORT_DIR);
         if (selected == null) return;
-        try {
-            XmlSaver saver = new XmlSaver();
-            InvoiceData data = saver.loadInvoice(selected);
+        runInBackground(() -> new XmlSaver().loadInvoice(selected), data -> {
             switchDoc(DocumentType.INVOICE);
             invoicePanel.fillFromData(data);
             JOptionPane.showMessageDialog(this, I18n.t("msg.invoice_loaded"));
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
-        }
+        });
     }
 
     private void importBudget() {
+        if (backgroundTaskRunning) return;
         Path selected = pickOpenPath(I18n.t("menu.file.import_budget"), "xml", AppPreferences.KEY_IMPORT_DIR);
         if (selected == null) return;
-        try {
-            XmlSaver saver = new XmlSaver();
-            BudgetData data = saver.loadBudget(selected);
+        runInBackground(() -> new XmlSaver().loadBudget(selected), data -> {
             switchDoc(DocumentType.BUDGET);
             budgetPanel.fillFromData(data);
             JOptionPane.showMessageDialog(this, I18n.t("msg.budget_loaded"));
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
-        }
+        });
     }
 
     private void createMenuBar() {
@@ -229,32 +227,34 @@ public class InvoicelyApp extends JFrame {
     }
 
     private DocumentType currentType() {
-        return (invoicePanel != null && invoicePanel.isShowing())
-                ? DocumentType.INVOICE
-                : DocumentType.BUDGET;
+        return activeType != null ? activeType : DocumentType.INVOICE;
     }
 
     private void doExport(String type) {
+        if (backgroundTaskRunning) return;
         try {
-            ReportGenerator gen = new ReportGenerator();
+            Locale exportLocale = I18n.getLocale();
             if (currentType() == DocumentType.INVOICE) {
                 InvoiceData inv = invoicePanel.collect();
                 String baseName = buildBaseName("factura", inv.getInvoiceNumber());
-                Path target = pickSavePath(I18n.t("dialog.export_title", type.toUpperCase()), baseName, type, AppPreferences.KEY_EXPORT_DIR);
+                Path target = pickSavePath(I18n.t("dialog.export_title", type.toUpperCase(Locale.ROOT)), baseName, type, AppPreferences.KEY_EXPORT_DIR);
                 if (target == null) return;
-                gen.exportInvoice(inv, type, target);
-                JOptionPane.showMessageDialog(this, I18n.t("msg.export_ok", target.toString()));
+                runInBackground(() -> {
+                    reportGenerator.exportInvoice(inv, type, target, exportLocale);
+                    return target;
+                }, saved -> JOptionPane.showMessageDialog(this, I18n.t("msg.export_ok", saved.toString())));
             } else {
                 BudgetData bud = budgetPanel.collect();
                 String baseName = buildBaseName("pressupost", bud.getBudgetNumber());
-                Path target = pickSavePath(I18n.t("dialog.export_title", type.toUpperCase()), baseName, type, AppPreferences.KEY_EXPORT_DIR);
+                Path target = pickSavePath(I18n.t("dialog.export_title", type.toUpperCase(Locale.ROOT)), baseName, type, AppPreferences.KEY_EXPORT_DIR);
                 if (target == null) return;
-                gen.exportBudget(bud, type, target);
-                JOptionPane.showMessageDialog(this, I18n.t("msg.export_ok", target.toString()));
+                runInBackground(() -> {
+                    reportGenerator.exportBudget(bud, type, target, exportLocale);
+                    return target;
+                }, saved -> JOptionPane.showMessageDialog(this, I18n.t("msg.export_ok", saved.toString())));
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
+            showError(ex);
         }
     }
 
@@ -277,8 +277,7 @@ public class InvoicelyApp extends JFrame {
                 JOptionPane.showMessageDialog(this, I18n.t("msg.budget_saved_xml", target.toString()));
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
+            showError(ex);
         }
     }
 
@@ -292,8 +291,7 @@ public class InvoicelyApp extends JFrame {
                 JOptionPane.showMessageDialog(this, I18n.t("msg.budget_defaults_saved"));
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
+            showError(ex);
         }
     }
 
@@ -302,36 +300,43 @@ public class InvoicelyApp extends JFrame {
             if (currentType() == DocumentType.INVOICE) {
                 InvoiceData data = defaults.loadInvoiceDefaults();
                 if (data != null) {
-                    invoicePanel.fillFromData(data);
+                    invoicePanel.applyDefaults(data);
                 } else {
                     JOptionPane.showMessageDialog(this, I18n.t("msg.no_invoice_defaults"));
                 }
             } else {
                 BudgetData data = defaults.loadBudgetDefaults();
                 if (data != null) {
-                    budgetPanel.fillFromData(data);
+                    budgetPanel.applyDefaults(data);
                 } else {
                     JOptionPane.showMessageDialog(this, I18n.t("msg.no_budget_defaults"));
                 }
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
+            showError(ex);
         }
     }
 
     private void editDefaults() {
-        DefaultsDialog dialog = new DefaultsDialog(this, currentType(), defaults);
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
-        if (dialog.isSaved()) {
-            JOptionPane.showMessageDialog(this, I18n.t("msg.defaults_updated"));
+        try {
+            DefaultsDialog dialog = new DefaultsDialog(this, currentType(), defaults);
+            dialog.setLocationRelativeTo(this);
+            dialog.setVisible(true);
+            if (dialog.isSaved()) {
+                JOptionPane.showMessageDialog(this, I18n.t("msg.defaults_updated"));
+            }
+        } catch (Exception ex) {
+            showError(ex);
         }
     }
 
     private void openPartnerManager() {
-        PartnerManagerDialog dialog = new PartnerManagerDialog(this);
-        dialog.setVisible(true);
+        try {
+            PartnerManagerDialog dialog = new PartnerManagerDialog(this);
+            dialog.setVisible(true);
+        } catch (RuntimeException ex) {
+            showError(ex);
+        }
     }
 
     private void configureReportLogo() {
@@ -348,12 +353,8 @@ public class InvoicelyApp extends JFrame {
             JOptionPane.showMessageDialog(this, I18n.t("msg.report_logo_missing"), I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
             return;
         }
-        try (InputStream in = Files.newInputStream(path)) {
-            BufferedImage image = ImageIO.read(in);
-            if (image == null) {
-                JOptionPane.showMessageDialog(this, I18n.t("msg.report_logo_invalid"), I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
-                return;
-            }
+        try {
+            SafeImageLoader.read(path);
             AppPreferences.setReportLogoPath(path);
             AppPreferences.setLastDirectory(AppPreferences.KEY_REPORT_LOGO_DIR, path.getParent());
             JOptionPane.showMessageDialog(this, I18n.t("msg.report_logo_saved"));
@@ -373,15 +374,17 @@ public class InvoicelyApp extends JFrame {
             if (type == DocumentType.INVOICE) {
                 InvoiceData data = defaults.loadInvoiceDefaults();
                 if (data != null && invoicePanel != null) {
-                    invoicePanel.fillFromData(data);
+                    invoicePanel.applyDefaults(data);
                 }
             } else {
                 BudgetData data = defaults.loadBudgetDefaults();
                 if (data != null && budgetPanel != null) {
-                    budgetPanel.fillFromData(data);
+                    budgetPanel.applyDefaults(data);
                 }
             }
-        } catch (Exception ignored) { }
+        } catch (Exception ex) {
+            SwingUtilities.invokeLater(() -> showError(ex));
+        }
     }
 
     private void applyAppIcon() {
@@ -442,6 +445,16 @@ public class InvoicelyApp extends JFrame {
     }
 
     public static void main(String[] args) {
+        if (args.length == 2 && "--verify-distribution".equals(args[0])) {
+            try {
+                DistributionVerifier.verify(Path.of(args[1]));
+                System.out.println("Invoicely distribution verification passed.");
+            } catch (Exception error) {
+                error.printStackTrace(System.err);
+                System.exit(1);
+            }
+            return;
+        }
         // Must be set before AWT initializes so macOS uses the product name in its menu bar.
         System.setProperty("apple.awt.application.name", "Invoicely");
         System.setProperty("apple.laf.useScreenMenuBar", "true");
@@ -464,12 +477,14 @@ public class InvoicelyApp extends JFrame {
     private void applyLanguage(String tag) {
         if (tag == null || tag.isBlank()) return;
         if (tag.equalsIgnoreCase(I18n.getLocale().toLanguageTag())) return;
+        InvoicePanel.DraftState invoiceData = invoicePanel != null ? invoicePanel.snapshotDraft() : null;
+        BudgetPanel.DraftState budgetData = budgetPanel != null ? budgetPanel.snapshotDraft() : null;
         AppPreferences.setLanguageTag(tag);
         I18n.setLocale(Locale.forLanguageTag(tag));
         setTitle(I18n.t("app.title"));
         createMenuBar();
         rebuildToolbar();
-        rebuildPanelsForLanguage();
+        rebuildPanelsForLanguage(invoiceData, budgetData);
         refreshTheme();
     }
 
@@ -481,25 +496,54 @@ public class InvoicelyApp extends JFrame {
         add(toolbar, BorderLayout.NORTH);
     }
 
-    private void rebuildPanelsForLanguage() {
-        InvoiceData invoiceData = invoicePanel != null ? invoicePanel.collect() : null;
-        BudgetData budgetData = budgetPanel != null ? budgetPanel.collect() : null;
+    private void rebuildPanelsForLanguage(InvoicePanel.DraftState invoiceData,
+                                          BudgetPanel.DraftState budgetData) {
         cardPanel.removeAll();
         invoicePanel = null;
         budgetPanel = null;
         if (invoiceData != null) {
             invoicePanel = new InvoicePanel();
             cardPanel.add(wrapWithMargin(invoicePanel), "INV");
-            invoicePanel.fillFromData(invoiceData);
+            invoicePanel.restoreDraft(invoiceData);
         }
         if (budgetData != null) {
             budgetPanel = new BudgetPanel();
             cardPanel.add(wrapWithMargin(budgetPanel), "BUD");
-            budgetPanel.fillFromData(budgetData);
+            budgetPanel.restoreDraft(budgetData);
         }
         if (activeType != null) {
             card.show(cardPanel, activeType == DocumentType.INVOICE ? "INV" : "BUD");
         }
+    }
+
+    private <T> void runInBackground(Callable<T> work, Consumer<T> onSuccess) {
+        if (backgroundTaskRunning) return;
+        backgroundTaskRunning = true;
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        new SwingWorker<T, Void>() {
+            @Override protected T doInBackground() throws Exception {
+                return work.call();
+            }
+
+            @Override protected void done() {
+                backgroundTaskRunning = false;
+                setCursor(Cursor.getDefaultCursor());
+                try {
+                    onSuccess.accept(get());
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    showError(ex);
+                } catch (ExecutionException ex) {
+                    showError(ex.getCause() != null ? ex.getCause() : ex);
+                }
+            }
+        }.execute();
+    }
+
+    private void showError(Throwable error) {
+        String message = error != null ? error.getMessage() : null;
+        if (message == null || message.isBlank()) message = I18n.t("msg.unexpected_error");
+        JOptionPane.showMessageDialog(this, message, I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
     }
 
     private void refreshTheme() {
@@ -556,7 +600,7 @@ public class InvoicelyApp extends JFrame {
         JFileChooser fc = new JFileChooser(AppPreferences.getLastDirectory(prefsKey).toFile());
         fc.setDialogTitle(title);
         if (extension != null && !extension.isBlank()) {
-            fc.setFileFilter(new FileNameExtensionFilter(extension.toUpperCase(), extension));
+            fc.setFileFilter(new FileNameExtensionFilter(extension.toUpperCase(Locale.ROOT), extension));
         }
         int res = fc.showOpenDialog(this);
         if (res == JFileChooser.APPROVE_OPTION) {
@@ -574,7 +618,7 @@ public class InvoicelyApp extends JFrame {
         JFileChooser fc = new JFileChooser(AppPreferences.getLastDirectory(prefsKey).toFile());
         fc.setDialogTitle(title);
         if (extension != null && !extension.isBlank()) {
-            fc.setFileFilter(new FileNameExtensionFilter(extension.toUpperCase(), extension));
+            fc.setFileFilter(new FileNameExtensionFilter(extension.toUpperCase(Locale.ROOT), extension));
         }
         if (baseName != null && !baseName.isBlank()) {
             fc.setSelectedFile(new File(baseName + "." + extension));
@@ -603,9 +647,11 @@ public class InvoicelyApp extends JFrame {
     private Path ensureExtension(Path path, String extension) {
         if (path == null) return null;
         if (extension == null || extension.isBlank()) return path;
-        String fileName = path.getFileName().toString();
-        String ext = "." + extension.toLowerCase();
-        if (fileName.toLowerCase().endsWith(ext)) {
+        Path fileNamePath = path.getFileName();
+        if (fileNamePath == null) throw new IllegalArgumentException(I18n.t("validation.invalid_file_name"));
+        String fileName = fileNamePath.toString();
+        String ext = "." + extension.toLowerCase(Locale.ROOT);
+        if (fileName.toLowerCase(Locale.ROOT).endsWith(ext)) {
             return path;
         }
         return path.resolveSibling(fileName + ext);

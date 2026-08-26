@@ -1,5 +1,6 @@
 package storage;
 
+import i18n.I18n;
 import models.BudgetData;
 import models.InvoiceData;
 import models.LineItem;
@@ -18,7 +19,15 @@ import java.util.Properties;
  * Simple persistence for default field values (without lines).
  */
 public class DefaultsManager {
-    private final Path baseDir = AppPaths.defaultsDir();
+    private final Path baseDir;
+
+    public DefaultsManager() {
+        this(AppPaths.defaultsDir());
+    }
+
+    DefaultsManager(Path baseDir) {
+        this.baseDir = baseDir;
+    }
 
     public void saveInvoiceDefaults(InvoiceData data) throws IOException {
         Properties p = new Properties();
@@ -50,12 +59,13 @@ public class DefaultsManager {
                 p.getProperty("customerNif", ""),
                 p.getProperty("customerAddress", ""),
                 parseBD(p.getProperty("vatPercent")),
-                Boolean.parseBoolean(p.getProperty("splitLines", "false")),
+                parseBoolean(p, "splitLines", false),
                 new ArrayList<LineItem>()
         );
     }
 
     public void saveBudgetDefaults(BudgetData data) throws IOException {
+        validateDateRange(data.getIssueDate(), data.getValidUntil());
         Properties p = new Properties();
         p.setProperty("budgetNumber", nz(data.getBudgetNumber()));
         p.setProperty("issueDate", formatDate(data.getIssueDate()));
@@ -78,10 +88,13 @@ public class DefaultsManager {
     public BudgetData loadBudgetDefaults() throws IOException {
         Properties p = readDefaults("budget");
         if (p == null) return null;
+        LocalDate issueDate = parseDate(p.getProperty("issueDate"));
+        LocalDate validUntil = parseDate(p.getProperty("validUntil"));
+        validateDateRange(issueDate, validUntil);
         return new BudgetData(
                 p.getProperty("budgetNumber", ""),
-                parseDate(p.getProperty("issueDate")),
-                parseDate(p.getProperty("validUntil")),
+                issueDate,
+                validUntil,
                 p.getProperty("supplierName", ""),
                 p.getProperty("supplierNif", ""),
                 p.getProperty("supplierAddress", ""),
@@ -90,22 +103,35 @@ public class DefaultsManager {
                 p.getProperty("clientAddress", ""),
                 p.getProperty("paymentTerms", ""),
                 p.getProperty("notes", ""),
-                Boolean.parseBoolean(p.getProperty("includeTotals", "false")),
+                parseBoolean(p, "includeTotals", false),
                 p.getProperty("taxName", "IVA"),
                 parseBD(p.getProperty("taxPercent")),
-                Boolean.parseBoolean(p.getProperty("splitLines", "false")),
+                parseBoolean(p, "splitLines", false),
                 new ArrayList<LineItem>()
         );
     }
 
     private void write(Properties p, Path target) throws IOException {
-        Files.createDirectories(target.getParent());
-        try (OutputStream out = Files.newOutputStream(target)) {
-            p.storeToXML(out, "Default values", "UTF-8");
+        try {
+            Path parent = target.toAbsolutePath().normalize().getParent();
+            if (parent == null) throw new IOException(I18n.t("validation.invalid_file_name"));
+            Path appBase = AppPaths.baseDir().toAbsolutePath().normalize();
+            if (parent.startsWith(appBase)) {
+                AppPaths.ensurePrivateDirectory(parent);
+            } else {
+                SafeFiles.createDirectories(parent, true);
+            }
+            SafeFiles.writeAtomically(target, true,
+                    out -> p.storeToXML(out, "Default values", "UTF-8"));
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("Could not save default values.", e);
         }
     }
 
     private Properties read(Path file) throws IOException {
+        SafeFiles.requireReadableFile(file, 1024L * 1024L);
         Properties p = new Properties();
         try (InputStream in = Files.newInputStream(file)) {
             p.loadFromXML(in);
@@ -114,6 +140,7 @@ public class DefaultsManager {
     }
 
     private Properties readLegacy(Path file) throws IOException {
+        SafeFiles.requireReadableFile(file, 1024L * 1024L);
         Properties p = new Properties();
         try (InputStream in = Files.newInputStream(file)) {
             p.load(in);
@@ -122,11 +149,15 @@ public class DefaultsManager {
     }
 
     private Properties readDefaults(String baseName) throws IOException {
-        Path xml = baseDir.resolve(baseName + ".xml");
-        if (Files.exists(xml)) return read(xml);
-        Path legacy = baseDir.resolve(baseName + ".properties");
-        if (Files.exists(legacy)) return readLegacy(legacy);
-        return null;
+        try {
+            Path xml = baseDir.resolve(baseName + ".xml");
+            if (Files.exists(xml)) return read(xml);
+            Path legacy = baseDir.resolve(baseName + ".properties");
+            if (Files.exists(legacy)) return readLegacy(legacy);
+            return null;
+        } catch (IOException | RuntimeException ex) {
+            throw new IOException(I18n.t("storage.defaults_read_error"), ex);
+        }
     }
 
     private String nz(String s) { return s == null ? "" : s; }
@@ -136,21 +167,45 @@ public class DefaultsManager {
         return String.format("%04d-%02d-%02d", d.getYear(), d.getMonthValue(), d.getDayOfMonth());
     }
 
-    private LocalDate parseDate(String s) {
+    private LocalDate parseDate(String s) throws IOException {
         try {
             if (s == null || s.isBlank()) return null;
             return LocalDate.parse(s);
         } catch (Exception e) {
-            return null;
+            throw new IOException(I18n.t("storage.defaults_read_error"), e);
         }
     }
 
-    private BigDecimal parseBD(String s) {
+    private BigDecimal parseBD(String s) throws IOException {
         try {
             if (s == null || s.isBlank()) return BigDecimal.ZERO;
-            return new BigDecimal(s.trim().replace(',', '.'));
+            BigDecimal value = new BigDecimal(s.trim().replace(',', '.'));
+            if (value.precision() > 8 || value.scale() < 0 || value.scale() > 4
+                    || value.compareTo(BigDecimal.ZERO) < 0
+                    || value.compareTo(new BigDecimal("100")) > 0) {
+                throw new NumberFormatException("percentage outside supported range");
+            }
+            return value;
         } catch (Exception e) {
-            return BigDecimal.ZERO;
+            throw new IOException(I18n.t("storage.defaults_read_error"), e);
+        }
+    }
+
+    private boolean parseBoolean(Properties properties, String key, boolean defaultValue) throws IOException {
+        String raw = properties.getProperty(key);
+        if (raw == null) return defaultValue;
+        String value = raw.trim();
+        if ("true".equalsIgnoreCase(value)) return true;
+        if ("false".equalsIgnoreCase(value)) return false;
+        throw new IOException(I18n.t("storage.defaults_read_error"));
+    }
+
+    private void validateDateRange(LocalDate issueDate, LocalDate validUntil) throws IOException {
+        if ((issueDate == null) != (validUntil == null)) {
+            throw new IOException(I18n.t("validation.default_dates_pair"));
+        }
+        if (issueDate != null && validUntil != null && validUntil.isBefore(issueDate)) {
+            throw new IOException(I18n.t("validation.date_range"));
         }
     }
 

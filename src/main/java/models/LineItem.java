@@ -1,6 +1,7 @@
 package models;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  *
@@ -8,6 +9,7 @@ import java.math.BigDecimal;
  */
 
 public class LineItem {
+    private static final int MONEY_SCALE = 2;
     private String description;
     private BigDecimal quantity;
     private BigDecimal unitPrice;
@@ -88,12 +90,13 @@ public class LineItem {
 
     public BigDecimal getLineBase()
     {
-      return nz(unitPrice).multiply(nz(quantity));
+      return money(nz(unitPrice).multiply(nz(quantity)));
     }
 
     public BigDecimal getDiscountAmount()
     {
-      return getLineBase().multiply(normalizePercent(discountPercent)).divide(new BigDecimal("100"));
+      return money(getLineBase().multiply(normalizePercent(discountPercent))
+              .divide(new BigDecimal("100")));
     }
 
     public BigDecimal getTotal()
@@ -105,6 +108,11 @@ public class LineItem {
     private BigDecimal normalizePercent(BigDecimal value)
     {
         return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private BigDecimal money(BigDecimal value)
+    {
+        return value.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 
     private BigDecimal nz(BigDecimal value)

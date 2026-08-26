@@ -15,7 +15,9 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +30,7 @@ import java.util.function.Consumer;
 
 public class InvoicePanel extends JPanel {
 
-    private static final DecimalFormat AMOUNT_FMT = new DecimalFormat("#,##0.00");
+    private final DecimalFormat amountFormat = createAmountFormat();
 
     private final JTextField tfNumber = new JTextField();
     private final JTextField tfDate   = new JTextField();
@@ -109,14 +111,15 @@ public class InvoicePanel extends JPanel {
 
     public InvoiceData collect() {
       LineTableModel m = itemsPanel.getModel();
-      List<LineItem> lines = m.getItems();
+      List<LineItem> lines = copyLines(m.getItems());
+      InputParser.validLineItems(lines);
       return new InvoiceData(
           cleanText(tfNumber),
-          parseDate(cleanText(tfDate)),
+          InputParser.requiredDate(cleanText(tfDate)),
           cleanText(tfIssuerName), cleanText(tfIssuerNif), cleanText(tfIssuerAddr),
           cleanText(tfIssuerAccount),
           cleanText(tfCustName), cleanText(tfCustNif), cleanText(tfCustAddr),
-          parsePercent(tfVatPercent),
+          InputParser.percent(cleanText(tfVatPercent)),
           itemsPanel.isSplitLines(),
           lines
       );
@@ -138,12 +141,56 @@ public class InvoicePanel extends JPanel {
       updateTotals();
     }
 
-    private LocalDate parseDate(String s) {
-      try {
-        String[] d = s.split("/");
-        return LocalDate.of(Integer.parseInt(d[2]), Integer.parseInt(d[1]), Integer.parseInt(d[0]));
-      } catch (Exception e) {
-        return LocalDate.now();
+    public void applyDefaults(InvoiceData data) {
+      if (data == null) return;
+      setField(tfNumber, data.getInvoiceNumber());
+      if (data.getIssueDate() != null) setField(tfDate, formatDate(data.getIssueDate()));
+      setField(tfIssuerName, data.getIssuerName());
+      setField(tfIssuerNif, data.getIssuerNif());
+      setField(tfIssuerAddr, data.getIssuerAddress());
+      setField(tfIssuerAccount, data.getIssuerAccount());
+      setField(tfCustName, data.getCustomerName());
+      setField(tfCustNif, data.getCustomerNif());
+      setField(tfCustAddr, data.getCustomerAddress());
+      setField(tfVatPercent, formatPercent(data.getVatPercent()));
+      itemsPanel.setSplitLines(data.isSplitLines());
+      updateTotals();
+    }
+
+    public DraftState snapshotDraft() {
+      return new DraftState(new String[] {
+          cleanText(tfNumber), cleanText(tfDate), cleanText(tfIssuerName), cleanText(tfIssuerNif),
+          cleanText(tfIssuerAddr), cleanText(tfIssuerAccount), cleanText(tfCustName),
+          cleanText(tfCustNif), cleanText(tfCustAddr), cleanText(tfVatPercent)
+      }, itemsPanel.isSplitLines(), copyLines(itemsPanel.getModel().getItems()));
+    }
+
+    public void restoreDraft(DraftState state) {
+      if (state == null) return;
+      setField(tfNumber, state.fields[0]);
+      setField(tfDate, state.fields[1]);
+      setField(tfIssuerName, state.fields[2]);
+      setField(tfIssuerNif, state.fields[3]);
+      setField(tfIssuerAddr, state.fields[4]);
+      setField(tfIssuerAccount, state.fields[5]);
+      setField(tfCustName, state.fields[6]);
+      setField(tfCustNif, state.fields[7]);
+      setField(tfCustAddr, state.fields[8]);
+      setField(tfVatPercent, state.fields[9]);
+      itemsPanel.setItems(copyLines(state.lines));
+      itemsPanel.setSplitLines(state.splitLines);
+      updateTotals();
+    }
+
+    public static final class DraftState {
+      private final String[] fields;
+      private final boolean splitLines;
+      private final List<LineItem> lines;
+
+      private DraftState(String[] fields, boolean splitLines, List<LineItem> lines) {
+        this.fields = fields.clone();
+        this.splitLines = splitLines;
+        this.lines = lines;
       }
     }
 
@@ -173,13 +220,14 @@ public class InvoicePanel extends JPanel {
         discountTotal = discountTotal.add(nz(li.getDiscountAmount()));
       }
       BigDecimal taxable = subtotal.subtract(discountTotal);
-      BigDecimal vatPercent = parsePercent(tfVatPercent);
-      BigDecimal vatTotal = taxable.multiply(vatPercent).divide(BigDecimal.valueOf(100));
+      BigDecimal vatPercent = previewPercent(tfVatPercent.getText());
+      BigDecimal vatTotal = taxable.multiply(vatPercent).divide(BigDecimal.valueOf(100))
+          .setScale(2, RoundingMode.HALF_UP);
       BigDecimal grand = taxable.add(vatTotal);
-      lblSubtotal.setText(AMOUNT_FMT.format(subtotal));
-      lblTotalDiscount.setText(AMOUNT_FMT.format(discountTotal));
-      lblTotalVat.setText(AMOUNT_FMT.format(vatTotal));
-      lblGrandTotal.setText(AMOUNT_FMT.format(grand));
+      lblSubtotal.setText(amountFormat.format(subtotal));
+      lblTotalDiscount.setText(amountFormat.format(discountTotal));
+      lblTotalVat.setText(amountFormat.format(vatTotal));
+      lblGrandTotal.setText(amountFormat.format(grand));
     }
 
     private JPanel createFormSection(String title, String[] labels, JComponent[] fields) {
@@ -386,10 +434,6 @@ public class InvoicePanel extends JPanel {
       repaint();
     }
 
-    private void openIssuerSelector() {
-      openPartnerSelector(this::loadIssuerPartner);
-    }
-
     private void openCustomerSelector() {
       openPartnerSelector(this::loadCustomerPartner);
     }
@@ -397,17 +441,13 @@ public class InvoicePanel extends JPanel {
     private void openPartnerSelector(Consumer<BusinessPartner> onSelected) {
       Window window = SwingUtilities.getWindowAncestor(this);
       Frame frame = window instanceof Frame ? (Frame) window : null;
-      PartnerSelectorDialog dialog = new PartnerSelectorDialog(frame);
-      dialog.setOnSelected(onSelected);
-      dialog.setVisible(true);
-    }
-
-    private void loadIssuerPartner(BusinessPartner partner) {
-      if (partner == null) return;
-      setField(tfIssuerName, partner.getName());
-      setField(tfIssuerNif, partner.getNif());
-      setField(tfIssuerAddr, partner.getAddress());
-      setField(tfIssuerAccount, partner.getAccount());
+      try {
+        PartnerSelectorDialog dialog = new PartnerSelectorDialog(frame);
+        dialog.setOnSelected(onSelected);
+        dialog.setVisible(true);
+      } catch (RuntimeException ex) {
+        JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
+      }
     }
 
     private void loadCustomerPartner(BusinessPartner partner) {
@@ -415,11 +455,6 @@ public class InvoicePanel extends JPanel {
       setField(tfCustName, partner.getName());
       setField(tfCustNif, partner.getNif());
       setField(tfCustAddr, partner.getAddress());
-    }
-
-    private void saveIssuerPartner() {
-      savePartnerFromFields(cleanText(tfIssuerName), cleanText(tfIssuerNif),
-          cleanText(tfIssuerAddr), cleanText(tfIssuerAccount));
     }
 
     private void saveCustomerPartner() {
@@ -547,19 +582,23 @@ public class InvoicePanel extends JPanel {
       return area;
     }
 
-    private BigDecimal parsePercent(JTextComponent comp) {
-      return parsePercent(comp.getText());
-    }
-
-    private BigDecimal parsePercent(String value) {
+    private BigDecimal previewPercent(String value) {
       try {
-        if (value == null) return BigDecimal.ZERO;
-        String cleaned = value.trim().replace(',', '.');
-        if (cleaned.isEmpty()) return BigDecimal.ZERO;
-        return new BigDecimal(cleaned);
+        return InputParser.percent(value);
       } catch (Exception e) {
         return BigDecimal.ZERO;
       }
+    }
+
+    private List<LineItem> copyLines(List<LineItem> source) {
+      List<LineItem> copy = new java.util.ArrayList<>();
+      if (source == null) return copy;
+      for (LineItem line : source) {
+        if (line == null) continue;
+        copy.add(new LineItem(line.getDescription(), line.getQuantity(), line.getUnitPrice(),
+            line.getDiscountPercent(), line.getCategory()));
+      }
+      return copy;
     }
 
     private String formatPercent(BigDecimal value) {
@@ -569,6 +608,13 @@ public class InvoicePanel extends JPanel {
 
     private BigDecimal nz(BigDecimal value) {
       return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private static DecimalFormat createAmountFormat() {
+      DecimalFormat format = (DecimalFormat) NumberFormat.getNumberInstance(I18n.getLocale());
+      format.applyPattern("#,##0.00");
+      format.setRoundingMode(RoundingMode.HALF_UP);
+      return format;
     }
 
     private void registerTotalsListener(JTextComponent comp) {
