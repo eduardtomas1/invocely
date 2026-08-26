@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>io.github.eduardtomas1</groupId>
+  <artifactId>invocely</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <name>Invoicely</name>
+  <description>A friendly, offline desktop app for creating invoices and quotes.</description>
+  <url>https://github.com/eduardtomas1/invocely</url>
+
+  <licenses>
+    <license>
+      <name>Apache License 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Eduard Tomas</name>
+      <url>https://github.com/eduardtomas1</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <url>https://github.com/eduardtomas1/invocely</url>
+    <connection>scm:git:https://github.com/eduardtomas1/invocely.git</connection>
+    <developerConnection>scm:git:https://github.com/eduardtomas1/invocely.git</developerConnection>
+  </scm>
+
+  <properties>
+    <java.version>11</java.version>
+    <maven.compiler.release>${java.version}</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <flatlaf.version>3.2</flatlaf.version>
+    <poi.version>5.2.5</poi.version>
+    <opencsv.version>5.9</opencsv.version>
+    <openpdf.version>1.3.39</openpdf.version>
+    <jasper.version>6.8.0</jasper.version>
+
+    <!-- Needed by Jasper on Java 11 -->
+    <jaxb.version>2.3.3</jaxb.version>
+  </properties>
+
+  <dependencies>
+    <!-- UI look & feel -->
+    <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf</artifactId>
+      <version>${flatlaf.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf-extras</artifactId>
+      <version>${flatlaf.version}</version>
+    </dependency>
+
+    <!-- Excel export -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>${poi.version}</version>
+    </dependency>
+
+    <!-- CSV export -->
+    <dependency>
+      <groupId>com.opencsv</groupId>
+      <artifactId>opencsv</artifactId>
+      <version>${opencsv.version}</version>
+    </dependency>
+
+    <!-- PDF export -->
+    <dependency>
+      <groupId>com.github.librepdf</groupId>
+      <artifactId>openpdf</artifactId>
+      <version>${openpdf.version}</version>
+    </dependency>
+
+    <!-- JasperReports -->
+    <dependency>
+      <groupId>net.sf.jasperreports</groupId>
+      <artifactId>jasperreports</artifactId>
+      <version>${jasper.version}</version>
+      <exclusions>
+        <!-- avoid old iText -->
+        <exclusion>
+          <groupId>com.lowagie</groupId>
+          <artifactId>itext</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>net.sf.jasperreports</groupId>
+      <artifactId>jasperreports-fonts</artifactId>
+      <version>${jasper.version}</version>
+    </dependency>
+
+    <!-- JSON storage -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.10.1</version>
+    </dependency>
+
+    <!-- JAXB for Java 11 (Jasper still uses it) -->
+    <dependency>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
+      <version>${jaxb.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.jaxb</groupId>
+      <artifactId>jaxb-runtime</artifactId>
+      <version>${jaxb.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.sun.activation</groupId>
+      <artifactId>jakarta.activation</artifactId>
+      <version>1.2.2</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Java 11 compilation -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+        </configuration>
+      </plugin>
+
+      <!-- Fat JAR -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>app.invocely.InvoicelyApp</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Plain jar too (optional) -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.3.0</version>
+        <configuration>
+          <archive>
+            <manifest>
+              <mainClass>app.invocely.InvoicelyApp</mainClass>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
+
+      <!-- mvn exec:java -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <configuration>
+          <mainClass>app.invocely.InvoicelyApp</mainClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

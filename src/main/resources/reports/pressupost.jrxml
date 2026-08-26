@@ -1,0 +1,359 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.8.0.final using JasperReports Library version 6.8.0-2ed8dfabb690ff337a5797129f2cd92902b0c87b  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="pressupost" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="535" leftMargin="30" rightMargin="30" topMargin="20" bottomMargin="20" uuid="5cfe9e3a-5e62-4f4b-8d06-3c4e52c9185e">
+	<parameter name="LOGO" class="java.awt.Image" isForPrompting="false"/>
+	<parameter name="BUDGET_NUMBER" class="java.lang.String"/>
+	<parameter name="ISSUE_DATE" class="java.time.LocalDate"/>
+	<parameter name="VALID_UNTIL" class="java.time.LocalDate"/>
+	<parameter name="SUPPLIER_NAME" class="java.lang.String"/>
+	<parameter name="SUPPLIER_NIF" class="java.lang.String"/>
+	<parameter name="SUPPLIER_ADDRESS" class="java.lang.String"/>
+	<parameter name="CLIENT_NAME" class="java.lang.String"/>
+	<parameter name="CLIENT_NIF" class="java.lang.String"/>
+	<parameter name="CLIENT_ADDRESS" class="java.lang.String"/>
+	<parameter name="PAYMENT_TERMS" class="java.lang.String"/>
+	<parameter name="NOTES" class="java.lang.String"/>
+	<parameter name="SUBTOTAL" class="java.math.BigDecimal"/>
+	<parameter name="DISCOUNT_TOTAL" class="java.math.BigDecimal"/>
+	<parameter name="GRAND_TOTAL" class="java.math.BigDecimal"/>
+	<parameter name="HAS_DISCOUNTS" class="java.lang.Boolean"/>
+	<parameter name="INCLUDE_TOTALS" class="java.lang.Boolean"/>
+	<parameter name="TAX_NAME" class="java.lang.String"/>
+	<parameter name="TAX_PERCENT" class="java.math.BigDecimal"/>
+	<parameter name="TAX_AMOUNT" class="java.math.BigDecimal"/>
+	<parameter name="SPLIT_LINES" class="java.lang.Boolean"/>
+	<field name="description" class="java.lang.String"/>
+	<field name="quantity" class="java.math.BigDecimal"/>
+	<field name="unitPrice" class="java.math.BigDecimal"/>
+	<field name="discountPercent" class="java.math.BigDecimal"/>
+	<field name="total" class="java.math.BigDecimal"/>
+	<field name="category" class="models.LineCategory"/>
+	<field name="titleRow" class="java.lang.Boolean"/>
+	<group name="LineCategory" isReprintHeaderOnEachPage="true" keepTogether="true">
+		<groupExpression><![CDATA[$F{category}]]></groupExpression>
+		<groupHeader>
+			<band height="18">
+				<printWhenExpression><![CDATA[$P{SPLIT_LINES} == true]]></printWhenExpression>
+				<textField>
+					<reportElement mode="Opaque" x="0" y="0" width="535" height="18" backcolor="#F0EDED" uuid="04ff2b1f-4b1d-4b1c-9ce6-7cdb2b808fdb"/>
+					<textElement>
+						<font isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$F{category} == null ? "" : $F{category}.toString()]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+	</group>
+	<title>
+		<band height="195">
+			<staticText>
+				<reportElement x="335" y="2" width="200" height="25" uuid="e0b9442b-2a29-4d66-82dd-ff5b6b5606c4">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="3"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="19" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Pressupost]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="335" y="27" width="200" height="16" uuid="24eb1d15-f66d-4e4f-9d1a-64f4dcb7b33c"/>
+				<box topPadding="0" leftPadding="0" bottomPadding="0" rightPadding="3"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA["Num. " + String.valueOf($P{BUDGET_NUMBER})]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="335" y="43" width="200" height="16" uuid="2142f3d1-6b42-4b48-8d06-14d7d0bbbd38"/>
+				<box topPadding="0" bottomPadding="0" rightPadding="3"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$P{ISSUE_DATE} == null ? "" : $P{ISSUE_DATE}.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy", new java.util.Locale("es","ES")))]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy">
+				<reportElement x="335" y="59" width="200" height="16" uuid="e32ed2f3-5f51-4b34-8d0d-84d5536a1289"/>
+				<box topPadding="0" bottomPadding="0" rightPadding="3"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$P{VALID_UNTIL} == null ? "" : $P{VALID_UNTIL}.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy", new java.util.Locale("es","ES")))]]></textFieldExpression>
+			</textField>
+			<image hAlign="Left" onErrorType="Blank">
+				<reportElement x="0" y="-10" width="270" height="93" uuid="2c77d28d-3c3c-4f1d-9c01-3d7b9d5089fd"/>
+				<imageExpression><![CDATA[$P{LOGO}]]></imageExpression>
+			</image>
+			<frame>
+				<reportElement x="0" y="70" width="260" height="118" uuid="1e76c5e7-8d6e-4df1-82e8-6ab49ea4704d">
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+				</reportElement>
+				<staticText>
+					<reportElement x="0" y="0" width="260" height="14" uuid="bf2a92d4-4f5d-4c8b-9d62-1030f65e4ef5"/>
+					<box leftPadding="3">
+						<bottomPen lineWidth="0.5"/>
+					</box>
+					<textElement>
+						<font isBold="true"/>
+					</textElement>
+					<text><![CDATA[Emissor]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="0" y="16" width="260" height="14" uuid="8a7c1b33-ff9d-4a92-b3d3-80e211f0471f"/>
+					<box leftPadding="3"/>
+					<textFieldExpression><![CDATA[String.valueOf($P{SUPPLIER_NAME})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="0" y="32" width="260" height="14" uuid="68a50a10-0b63-48a9-87e6-6b61f2f0487a"/>
+					<box leftPadding="3"/>
+					<textFieldExpression><![CDATA["NIF: " + String.valueOf($P{SUPPLIER_NIF})]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true">
+					<reportElement positionType="Float" x="0" y="48" width="260" height="32" uuid="22e4453c-9b20-4a88-8e4c-9d392a0b15ff"/>
+					<box leftPadding="3"/>
+					<textFieldExpression><![CDATA[String.valueOf($P{SUPPLIER_ADDRESS})]]></textFieldExpression>
+				</textField>
+			</frame>
+			<frame>
+				<reportElement x="275" y="70" width="260" height="118" uuid="a4c5b5bf-6868-4f9e-95a2-6c16f2514f3e">
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+				</reportElement>
+				<staticText>
+					<reportElement x="0" y="0" width="260" height="14" uuid="d5a2dd2a-3f9b-4f9d-8c3f-60f812b7ae41"/>
+					<box leftPadding="3">
+						<bottomPen lineWidth="0.5"/>
+					</box>
+					<textElement>
+						<font isBold="true"/>
+					</textElement>
+					<text><![CDATA[Client]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="0" y="16" width="260" height="14" uuid="ae2dd1b4-7f5c-4c7e-9e5f-064f6db4de97"/>
+					<box leftPadding="3"/>
+					<textFieldExpression><![CDATA[String.valueOf($P{CLIENT_NAME})]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="0" y="32" width="260" height="14" uuid="1e6a29e5-e0e0-4d15-85f2-cc2530a3f2db"/>
+					<box leftPadding="3"/>
+					<textFieldExpression><![CDATA["NIF: " + String.valueOf($P{CLIENT_NIF})]]></textFieldExpression>
+				</textField>
+				<textField isStretchWithOverflow="true">
+					<reportElement positionType="Float" x="0" y="48" width="260" height="70" uuid="c77b2e58-3a07-4a62-a040-7debd07883eb"/>
+					<box leftPadding="3"/>
+					<textFieldExpression><![CDATA[String.valueOf($P{CLIENT_ADDRESS})]]></textFieldExpression>
+				</textField>
+			</frame>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="25">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<staticText>
+				<reportElement x="0" y="0" width="245" height="18" uuid="af8ad31c-3a13-44aa-8814-d2b8c1d4f19c"/>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Descripcio]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="245" y="0" width="60" height="18" uuid="1a1cbd62-3f5f-47a1-b7a6-06b0910a3c33"/>
+				<textElement textAlignment="Right">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Qt.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="305" y="0" width="80" height="18" uuid="5a45f10f-680b-48fa-a5f6-8273ec1011f5"/>
+				<textElement textAlignment="Right">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Preu]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="385" y="0" width="70" height="18" uuid="c4c5591d-38c6-4f0b-9255-1f6b2b7c21f3">
+					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Dto %]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="455" y="0" width="80" height="18" uuid="0c3a6057-6f78-4a22-9c8f-6de1b6c04e21">
+					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Total]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="385" y="0" width="150" height="18" uuid="7c24c454-b5cc-47cc-93df-0d2ef18fb744">
+					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == false]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right">
+					<font isBold="true"/>
+				</textElement>
+				<text><![CDATA[Total]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="25" splitType="Stretch">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<printWhenExpression><![CDATA[$F{titleRow} == null || $F{titleRow} == false]]></printWhenExpression>
+			<textField isStretchWithOverflow="true">
+				<reportElement x="0" y="0" width="245" height="18" uuid="c2eb6a0e-4a4b-4f4f-bd16-b33b2d2cc7f4"/>
+				<textFieldExpression><![CDATA[$F{description}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.##">
+				<reportElement x="245" y="0" width="60" height="18" uuid="8b96f065-86a4-4b30-96a7-8c857b0c9c19"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{quantity}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement x="305" y="0" width="80" height="18" uuid="cf1cf59f-175c-4f69-b7a5-69f25a7808b7"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{unitPrice}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.##">
+				<reportElement x="385" y="0" width="70" height="18" uuid="3d0b0c8c-1adf-4d04-813c-3aaea10b072c">
+					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{discountPercent}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement x="455" y="0" width="80" height="18" uuid="9dd619c8-8b4b-4e19-9d17-ec05af33bd52">
+					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == true]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{total}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00">
+				<reportElement x="385" y="0" width="150" height="18" uuid="c1bcb188-0f90-4ab0-9c2c-442a9c673b6a">
+					<printWhenExpression><![CDATA[$P{HAS_DISCOUNTS} == false]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{total}]]></textFieldExpression>
+			</textField>
+		</band>
+		<band height="18">
+			<printWhenExpression><![CDATA[$F{titleRow} == true]]></printWhenExpression>
+			<textField isStretchWithOverflow="true">
+				<reportElement mode="Opaque" x="0" y="0" width="535" height="18" backcolor="#F0EDED" uuid="15fae69b-e607-45c1-b925-4981d479ffdb"/>
+				<textElement>
+					<font isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{description}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="70">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<textField>
+				<reportElement x="0" y="0" width="535" height="26" uuid="f98a8fe2-38f5-4b59-8e5f-fcbe0f8f3e52"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$P{ISSUE_DATE} == null ? "Validesa: un mes des de la data del document" :
+                    "Validesa: un mes des de la data del document (fins " +
+                    java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy").format($P{ISSUE_DATE}.plusMonths(1)) + ")"]]></textFieldExpression>
+			</textField>
+			<frame>
+				<reportElement x="170" y="28" width="365" height="40" uuid="fd4a0e8d-5d64-4e16-9f3d-1781f2a3a52b">
+					<printWhenExpression><![CDATA[$P{INCLUDE_TOTALS} == true && $P{HAS_DISCOUNTS} == true]]></printWhenExpression>
+				</reportElement>
+				<box>
+					<pen lineWidth="0.5"/>
+				</box>
+				<staticText>
+					<reportElement x="0" y="0" width="90" height="20" uuid="158832cf-7f7c-4ab6-89bb-6672260d8d43"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font isBold="true"/>
+					</textElement>
+					<text><![CDATA[Subtotal]]></text>
+				</staticText>
+				<staticText>
+					<reportElement x="90" y="0" width="90" height="20" uuid="27c4b0a3-01f5-4504-8b0f-06f180474cb3"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font isBold="true"/>
+					</textElement>
+					<text><![CDATA[Descompte]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="180" y="0" width="90" height="20" uuid="06fc5507-54e1-4b2e-a357-a4f0a6bcda1b"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[String.valueOf($P{TAX_NAME}) + " (" + String.valueOf($P{TAX_PERCENT}) + "%)"]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="270" y="0" width="95" height="20" uuid="588d023f-2a39-4032-9ff7-71825e8941fd"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font isBold="true"/>
+					</textElement>
+					<text><![CDATA[Total]]></text>
+				</staticText>
+				<textField pattern="#,##0.00">
+					<reportElement x="0" y="20" width="90" height="20" uuid="89af8e7a-c349-4e54-9c2f-6ba1eec7f4f5"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle"/>
+					<textFieldExpression><![CDATA[$P{SUBTOTAL}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00">
+					<reportElement x="90" y="20" width="90" height="20" uuid="af3e9681-0c0d-4f01-bdc3-d08dc1d63c5e"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle"/>
+					<textFieldExpression><![CDATA[$P{DISCOUNT_TOTAL}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00">
+					<reportElement x="180" y="20" width="90" height="20" uuid="3f12011a-6b93-44ab-98df-1c322cfffe6f"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle"/>
+					<textFieldExpression><![CDATA[$P{TAX_AMOUNT}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00">
+					<reportElement x="270" y="20" width="95" height="20" uuid="33e2f80b-4c8b-4d9b-90b2-5c7a8bd115fb"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle"/>
+					<textFieldExpression><![CDATA[$P{GRAND_TOTAL}]]></textFieldExpression>
+				</textField>
+			</frame>
+			<frame>
+				<reportElement x="170" y="28" width="365" height="40" uuid="5e219a0a-487d-4777-8b1c-ae115f26ef0b">
+					<printWhenExpression><![CDATA[$P{INCLUDE_TOTALS} == true && $P{HAS_DISCOUNTS} == false]]></printWhenExpression>
+				</reportElement>
+				<box>
+					<pen lineWidth="0.5"/>
+				</box>
+				<staticText>
+					<reportElement x="0" y="0" width="120" height="20" uuid="5453b7b6-c65d-4f2f-99e3-22b59e0e64a5"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font isBold="true"/>
+					</textElement>
+					<text><![CDATA[Subtotal]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="120" y="0" width="120" height="20" uuid="722fd40a-f2a0-4f7f-a146-84a05b9999c1"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[String.valueOf($P{TAX_NAME}) + " (" + String.valueOf($P{TAX_PERCENT}) + "%)"]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement x="240" y="0" width="125" height="20" uuid="e2d3e4a0-1c32-4a55-b363-08d1a4e75a0a"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font isBold="true"/>
+					</textElement>
+					<text><![CDATA[Total]]></text>
+				</staticText>
+				<textField pattern="#,##0.00">
+					<reportElement x="0" y="20" width="120" height="20" uuid="a349cceb-1f5b-497a-9d8f-e0a4705dad7b"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle"/>
+					<textFieldExpression><![CDATA[$P{SUBTOTAL}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00">
+					<reportElement x="120" y="20" width="120" height="20" uuid="2e3ed76c-4c8b-4d5f-bc9e-86a6dcb5b8e0"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle"/>
+					<textFieldExpression><![CDATA[$P{TAX_AMOUNT}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00">
+					<reportElement x="240" y="20" width="125" height="20" uuid="86d3507b-4e59-4fbb-86fe-90d7c9a6a0b1"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle"/>
+					<textFieldExpression><![CDATA[$P{GRAND_TOTAL}]]></textFieldExpression>
+				</textField>
+			</frame>
+		</band>
+	</pageFooter>
+</jasperReport>

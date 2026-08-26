@@ -1,0 +1,581 @@
+package ui;
+
+import i18n.I18n;
+import models.BusinessPartner;
+import models.InvoiceData;
+import models.LineItem;
+import storage.BusinessPartnerStore;
+import table.LineTableModel;
+
+import javax.swing.*;
+import javax.swing.border.Border;
+import javax.swing.border.TitledBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.JTextComponent;
+import java.awt.*;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
+/**
+ *
+ * @author Eduard Tomas
+ */
+
+public class InvoicePanel extends JPanel {
+
+    private static final DecimalFormat AMOUNT_FMT = new DecimalFormat("#,##0.00");
+
+    private final JTextField tfNumber = new JTextField();
+    private final JTextField tfDate   = new JTextField();
+    private final JTextField tfIssuerName = new JTextField();
+    private final JTextField tfIssuerNif  = new JTextField();
+    private final JTextArea tfIssuerAddr = createAddressArea();
+    private final JTextField tfIssuerAccount = new JTextField();
+    private final JTextField tfCustName = new JTextField();
+    private final JTextField tfCustNif  = new JTextField();
+    private final JTextArea tfCustAddr = createAddressArea();
+    private final JTextField tfVatPercent = new JTextField("21");
+    private final ItemTablePanel itemsPanel = new ItemTablePanel();
+    private final BusinessPartnerStore partnerStore = new BusinessPartnerStore();
+    private final JLabel lblSubtotal = createAmountLabel();
+    private final JLabel lblTotalDiscount = createAmountLabel();
+    private final JLabel lblTotalVat = createAmountLabel();
+    private final JLabel lblGrandTotal = createAmountLabel();
+    private final List<JComponent> sections = new ArrayList<>();
+    private final List<JPanel> metricPanels = new ArrayList<>();
+    private final List<JLabel> metricTitleLabels = new ArrayList<>();
+    private final List<JTextComponent> allFields = new ArrayList<>();
+
+    public InvoicePanel() {
+      setLayout(new BorderLayout(12,12));
+      setOpaque(true);
+      setBackground(panelBgColor());
+
+      // placeholders for quick guidance
+      applyPlaceholder(tfNumber, I18n.t("placeholder.invoice_number"));
+      applyPlaceholder(tfDate, I18n.t("placeholder.date"));
+      applyPlaceholder(tfIssuerName, I18n.t("placeholder.issuer_name"));
+      applyPlaceholder(tfIssuerNif, I18n.t("placeholder.issuer_nif"));
+      applyPlaceholder(tfIssuerAddr, I18n.t("placeholder.issuer_address"));
+      applyPlaceholder(tfIssuerAccount, I18n.t("placeholder.issuer_account"));
+      applyPlaceholder(tfCustName, I18n.t("placeholder.customer_name"));
+      applyPlaceholder(tfCustNif, I18n.t("placeholder.customer_nif"));
+      applyPlaceholder(tfCustAddr, I18n.t("placeholder.customer_address"));
+      allFields.add(tfNumber);
+      allFields.add(tfDate);
+      allFields.add(tfIssuerName);
+      allFields.add(tfIssuerNif);
+      allFields.add(tfIssuerAddr);
+      allFields.add(tfIssuerAccount);
+      allFields.add(tfCustName);
+      allFields.add(tfCustNif);
+      allFields.add(tfCustAddr);
+      allFields.add(tfVatPercent);
+
+      prefillDate(tfDate);
+
+      JPanel north = new JPanel(new GridLayout(1,3,12,12));
+      north.setOpaque(true);
+      north.setBackground(panelBgColor());
+      north.add(createFormSection(I18n.t("section.invoice"),
+              new String[] { I18n.t("label.invoice_number"), I18n.t("label.issue_date") },
+              new JComponent[] { tfNumber, tfDate }));
+      north.add(createFormSection(I18n.t("section.issuer"),
+              new String[] { I18n.t("label.issuer_name"), I18n.t("label.issuer_nif"),
+                  I18n.t("label.issuer_address"), I18n.t("label.issuer_account") },
+              new JComponent[] { tfIssuerName, tfIssuerNif, tfIssuerAddr, tfIssuerAccount }));
+      north.add(createPartnerSection(I18n.t("section.customer"),
+              new String[] { I18n.t("label.customer_name"), I18n.t("label.customer_nif"),
+                  I18n.t("label.customer_address") },
+              new JComponent[] { tfCustName, tfCustNif, tfCustAddr },
+              this::openCustomerSelector, this::saveCustomerPartner));
+
+      add(north, BorderLayout.NORTH);
+
+      itemsPanel.setBorder(sectionBorder(I18n.t("section.items")));
+      add(itemsPanel, BorderLayout.CENTER);
+
+      itemsPanel.getModel().addTableModelListener(e -> updateTotals());
+      registerTotalsListener(tfVatPercent);
+      updateTotals();
+
+      add(buildTotalsBand(), BorderLayout.SOUTH);
+    }
+
+    public InvoiceData collect() {
+      LineTableModel m = itemsPanel.getModel();
+      List<LineItem> lines = m.getItems();
+      return new InvoiceData(
+          cleanText(tfNumber),
+          parseDate(cleanText(tfDate)),
+          cleanText(tfIssuerName), cleanText(tfIssuerNif), cleanText(tfIssuerAddr),
+          cleanText(tfIssuerAccount),
+          cleanText(tfCustName), cleanText(tfCustNif), cleanText(tfCustAddr),
+          parsePercent(tfVatPercent),
+          itemsPanel.isSplitLines(),
+          lines
+      );
+    }
+
+    public void fillFromData(InvoiceData data) {
+      setField(tfNumber, data.getInvoiceNumber());
+      setField(tfDate, data.getIssueDate() != null ? formatDate(data.getIssueDate()) : "");
+      setField(tfIssuerName, data.getIssuerName());
+      setField(tfIssuerNif, data.getIssuerNif());
+      setField(tfIssuerAddr, data.getIssuerAddress());
+      setField(tfIssuerAccount, data.getIssuerAccount());
+      setField(tfCustName, data.getCustomerName());
+      setField(tfCustNif, data.getCustomerNif());
+      setField(tfCustAddr, data.getCustomerAddress());
+      setField(tfVatPercent, formatPercent(data.getVatPercent()));
+      itemsPanel.setItems(data.getLines());
+      itemsPanel.setSplitLines(data.isSplitLines());
+      updateTotals();
+    }
+
+    private LocalDate parseDate(String s) {
+      try {
+        String[] d = s.split("/");
+        return LocalDate.of(Integer.parseInt(d[2]), Integer.parseInt(d[1]), Integer.parseInt(d[0]));
+      } catch (Exception e) {
+        return LocalDate.now();
+      }
+    }
+
+    private String formatDate(LocalDate date) {
+      if (date == null) return "";
+      return String.format("%02d/%02d/%04d", date.getDayOfMonth(), date.getMonthValue(), date.getYear());
+    }
+
+    private void prefillDate(JTextField field) {
+      if (field == null) return;
+      Boolean active = (Boolean) field.getClientProperty("placeholder.active");
+      String current = field.getText();
+      if (Boolean.TRUE.equals(active) || current == null || current.isBlank()) {
+        field.setText(formatDate(LocalDate.now()));
+        field.putClientProperty("placeholder.active", Boolean.FALSE);
+        syncFieldColor(field);
+      }
+    }
+
+    private void updateTotals() {
+      BigDecimal subtotal = BigDecimal.ZERO;
+      BigDecimal discountTotal = BigDecimal.ZERO;
+      for (LineItem li : itemsPanel.getModel().getItems()) {
+        if (li == null) continue;
+        BigDecimal base = nz(li.getLineBase());
+        subtotal = subtotal.add(base);
+        discountTotal = discountTotal.add(nz(li.getDiscountAmount()));
+      }
+      BigDecimal taxable = subtotal.subtract(discountTotal);
+      BigDecimal vatPercent = parsePercent(tfVatPercent);
+      BigDecimal vatTotal = taxable.multiply(vatPercent).divide(BigDecimal.valueOf(100));
+      BigDecimal grand = taxable.add(vatTotal);
+      lblSubtotal.setText(AMOUNT_FMT.format(subtotal));
+      lblTotalDiscount.setText(AMOUNT_FMT.format(discountTotal));
+      lblTotalVat.setText(AMOUNT_FMT.format(vatTotal));
+      lblGrandTotal.setText(AMOUNT_FMT.format(grand));
+    }
+
+    private JPanel createFormSection(String title, String[] labels, JComponent[] fields) {
+      JPanel section = new JPanel(new GridBagLayout());
+      section.setOpaque(true);
+      section.setBackground(sectionBgColor());
+      section.setBorder(sectionBorder(title));
+      section.putClientProperty("section.title", title);
+      sections.add(section);
+
+      GridBagConstraints gbc = new GridBagConstraints();
+      gbc.insets = new Insets(4, 6, 4, 6);
+      gbc.fill = GridBagConstraints.HORIZONTAL;
+      gbc.anchor = GridBagConstraints.WEST;
+      gbc.weightx = 1;
+      gbc.weighty = 0;
+
+      for (int i = 0; i < labels.length; i++) {
+        gbc.gridx = 0;
+        gbc.gridy = i;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weighty = 0;
+        section.add(createLabel(labels[i]), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        boolean isArea = fields[i] instanceof JTextArea;
+        gbc.fill = isArea ? GridBagConstraints.BOTH : GridBagConstraints.HORIZONTAL;
+        gbc.weighty = isArea ? 1 : 0;
+        section.add(fields[i], gbc);
+      }
+      return section;
+    }
+
+    private JPanel createPartnerSection(String title, String[] labels, JComponent[] fields,
+                                        Runnable onSelect, Runnable onSave) {
+      JPanel section = new JPanel(new GridBagLayout());
+      section.setOpaque(true);
+      section.setBackground(sectionBgColor());
+      section.setBorder(sectionBorder(title));
+      section.putClientProperty("section.title", title);
+      sections.add(section);
+
+      GridBagConstraints gbc = new GridBagConstraints();
+      gbc.insets = new Insets(4, 6, 4, 6);
+      gbc.fill = GridBagConstraints.HORIZONTAL;
+      gbc.anchor = GridBagConstraints.WEST;
+      gbc.weightx = 1;
+      gbc.weighty = 0;
+
+      gbc.gridx = 0;
+      gbc.gridy = 0;
+      gbc.weightx = 0;
+      section.add(createLabel(I18n.t("partner.label")), gbc);
+
+      JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+      actions.setOpaque(false);
+      JButton selectBtn = new JButton(I18n.t("partner.select"));
+      selectBtn.setFont(selectBtn.getFont().deriveFont(11f));
+      selectBtn.setMargin(new Insets(2, 8, 2, 8));
+      selectBtn.addActionListener(e -> onSelect.run());
+      JButton saveBtn = new JButton(I18n.t("partner.save"));
+      saveBtn.setFont(saveBtn.getFont().deriveFont(11f));
+      saveBtn.setMargin(new Insets(2, 8, 2, 8));
+      saveBtn.addActionListener(e -> onSave.run());
+      actions.add(selectBtn);
+      actions.add(saveBtn);
+
+      gbc.gridx = 1;
+      gbc.weightx = 1;
+      section.add(actions, gbc);
+
+      for (int i = 0; i < labels.length; i++) {
+        gbc.gridx = 0;
+        gbc.gridy = i + 1;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weighty = 0;
+        section.add(createLabel(labels[i]), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        boolean isArea = fields[i] instanceof JTextArea;
+        gbc.fill = isArea ? GridBagConstraints.BOTH : GridBagConstraints.HORIZONTAL;
+        gbc.weighty = isArea ? 1 : 0;
+        section.add(fields[i], gbc);
+      }
+      return section;
+    }
+
+    private Border sectionBorder(String title) {
+      return BorderFactory.createCompoundBorder(
+          BorderFactory.createTitledBorder(
+              BorderFactory.createLineBorder(sectionBorderColor()),
+              title,
+              TitledBorder.LEADING,
+              TitledBorder.TOP,
+              null,
+              ThemeManager.palette().text()
+          ),
+          BorderFactory.createEmptyBorder(6, 6, 10, 6)
+      );
+    }
+
+    private JLabel createLabel(String text) {
+      JLabel l = new JLabel(text);
+      l.setFont(l.getFont().deriveFont(Font.BOLD));
+      return l;
+    }
+
+    private JLabel createAmountLabel() {
+      JLabel l = new JLabel("0.00");
+      l.setFont(l.getFont().deriveFont(Font.BOLD, 16f));
+      l.setHorizontalAlignment(SwingConstants.RIGHT);
+      l.setForeground(ThemeManager.palette().text());
+      return l;
+    }
+
+    private JPanel buildTotalsBand() {
+      JPanel totals = new JPanel(new GridLayout(1, 4, 12, 12));
+      totals.setOpaque(true);
+      totals.setBackground(panelBgColor());
+      totals.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
+
+      totals.add(metric(I18n.t("metric.subtotal"), lblSubtotal));
+      totals.add(metric(I18n.t("metric.discount"), lblTotalDiscount));
+      totals.add(metricWithInput(I18n.t("metric.vat"), tfVatPercent, lblTotalVat));
+      totals.add(metric(I18n.t("metric.total"), lblGrandTotal));
+      return totals;
+    }
+
+    private JPanel metric(String title, JLabel value) {
+      JPanel p = metricBase();
+      JLabel titleLbl = new JLabel(title);
+      titleLbl.setFont(titleLbl.getFont().deriveFont(Font.BOLD));
+      titleLbl.setForeground(mutedTextColor());
+      p.add(titleLbl, BorderLayout.NORTH);
+      p.add(value, BorderLayout.SOUTH);
+      metricPanels.add(p);
+      metricTitleLabels.add(titleLbl);
+      return p;
+    }
+
+    private JPanel metricWithInput(String title, JTextField input, JLabel value) {
+      JPanel p = metricBase();
+      JPanel header = new JPanel(new BorderLayout(6, 0));
+      header.setOpaque(false);
+      JLabel titleLbl = new JLabel(title);
+      titleLbl.setFont(titleLbl.getFont().deriveFont(Font.BOLD));
+      titleLbl.setForeground(mutedTextColor());
+      input.setColumns(4);
+      input.setHorizontalAlignment(SwingConstants.RIGHT);
+      header.add(titleLbl, BorderLayout.WEST);
+      header.add(input, BorderLayout.EAST);
+      p.add(header, BorderLayout.NORTH);
+      p.add(value, BorderLayout.SOUTH);
+      metricPanels.add(p);
+      metricTitleLabels.add(titleLbl);
+      return p;
+    }
+
+    private JPanel metricBase() {
+      JPanel p = new JPanel(new BorderLayout());
+      p.setOpaque(true);
+      p.setBackground(sectionBgColor());
+      p.setBorder(BorderFactory.createCompoundBorder(
+          BorderFactory.createLineBorder(sectionBorderColor()),
+          BorderFactory.createEmptyBorder(8, 10, 8, 10)
+      ));
+      return p;
+    }
+
+    public void refreshTheme() {
+      ThemePalette palette = ThemeManager.palette();
+      Color bg = sectionBgColor();
+      setBackground(panelBgColor());
+      refreshFieldColors();
+      lblSubtotal.setForeground(palette.text());
+      lblTotalDiscount.setForeground(palette.text());
+      lblTotalVat.setForeground(palette.text());
+      lblGrandTotal.setForeground(palette.text());
+      for (JComponent section : sections) {
+        section.setBackground(bg);
+        Object title = section.getClientProperty("section.title");
+        if (title instanceof String) {
+          section.setBorder(sectionBorder((String) title));
+        }
+        applyLabelColor(section, palette.text());
+      }
+      itemsPanel.setBorder(sectionBorder(I18n.t("section.items")));
+      itemsPanel.refreshTheme();
+      for (JPanel p : metricPanels) {
+        p.setBackground(bg);
+        p.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(sectionBorderColor()),
+            BorderFactory.createEmptyBorder(8, 10, 8, 10)
+        ));
+      }
+      for (JLabel metricTitle : metricTitleLabels) {
+        metricTitle.setForeground(mutedTextColor());
+      }
+      revalidate();
+      repaint();
+    }
+
+    private void openIssuerSelector() {
+      openPartnerSelector(this::loadIssuerPartner);
+    }
+
+    private void openCustomerSelector() {
+      openPartnerSelector(this::loadCustomerPartner);
+    }
+
+    private void openPartnerSelector(Consumer<BusinessPartner> onSelected) {
+      Window window = SwingUtilities.getWindowAncestor(this);
+      Frame frame = window instanceof Frame ? (Frame) window : null;
+      PartnerSelectorDialog dialog = new PartnerSelectorDialog(frame);
+      dialog.setOnSelected(onSelected);
+      dialog.setVisible(true);
+    }
+
+    private void loadIssuerPartner(BusinessPartner partner) {
+      if (partner == null) return;
+      setField(tfIssuerName, partner.getName());
+      setField(tfIssuerNif, partner.getNif());
+      setField(tfIssuerAddr, partner.getAddress());
+      setField(tfIssuerAccount, partner.getAccount());
+    }
+
+    private void loadCustomerPartner(BusinessPartner partner) {
+      if (partner == null) return;
+      setField(tfCustName, partner.getName());
+      setField(tfCustNif, partner.getNif());
+      setField(tfCustAddr, partner.getAddress());
+    }
+
+    private void saveIssuerPartner() {
+      savePartnerFromFields(cleanText(tfIssuerName), cleanText(tfIssuerNif),
+          cleanText(tfIssuerAddr), cleanText(tfIssuerAccount));
+    }
+
+    private void saveCustomerPartner() {
+      savePartnerFromFields(cleanText(tfCustName), cleanText(tfCustNif),
+          cleanText(tfCustAddr), null);
+    }
+
+    private void savePartnerFromFields(String name, String nif, String address, String account) {
+      if (name == null || name.trim().isEmpty()) {
+        JOptionPane.showMessageDialog(this, I18n.t("partner.msg.missing_name"),
+            I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
+        return;
+      }
+      BusinessPartner partner = new BusinessPartner();
+      partner.setName(name);
+      partner.setNif(nif);
+      partner.setAddress(address);
+      partner.setAccount(account);
+      try {
+        partnerStore.upsert(partner);
+        JOptionPane.showMessageDialog(this, I18n.t("partner.msg.saved"));
+      } catch (Exception ex) {
+        JOptionPane.showMessageDialog(this, ex.getMessage(),
+            I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
+      }
+    }
+
+    private void applyLabelColor(Container container, Color color) {
+      for (Component c : container.getComponents()) {
+        if (c instanceof JLabel) {
+          ((JLabel) c).setForeground(color);
+        }
+      }
+    }
+
+    private Color sectionBorderColor() {
+      return ThemeManager.palette().border();
+    }
+
+    private Color sectionBgColor() {
+      return ThemeManager.palette().card();
+    }
+
+    private Color panelBgColor() {
+      return ThemeManager.palette().background();
+    }
+
+    private Color mutedTextColor() {
+      Color c = UIManager.getColor("Label.disabledForeground");
+      if (c != null) return c;
+      return ThemeManager.palette().muted();
+    }
+
+    private void applyPlaceholder(JTextComponent comp, String placeholder) {
+      comp.putClientProperty("placeholder.text", placeholder);
+      if (comp.getText().isEmpty()) {
+        comp.setText(placeholder);
+        comp.putClientProperty("placeholder.active", Boolean.TRUE);
+      } else {
+        comp.putClientProperty("placeholder.active", Boolean.FALSE);
+      }
+      syncFieldColor(comp);
+      comp.addFocusListener(new java.awt.event.FocusAdapter() {
+        @Override public void focusGained(java.awt.event.FocusEvent e) {
+          Boolean active = (Boolean) comp.getClientProperty("placeholder.active");
+          String ph = (String) comp.getClientProperty("placeholder.text");
+          if (Boolean.TRUE.equals(active) && ph != null && comp.getText().equals(ph)) {
+            comp.setText("");
+            comp.putClientProperty("placeholder.active", Boolean.FALSE);
+          }
+          syncFieldColor(comp);
+        }
+        @Override public void focusLost(java.awt.event.FocusEvent e) {
+          if (comp.getText().isEmpty()) {
+            comp.setText(placeholder);
+            comp.putClientProperty("placeholder.active", Boolean.TRUE);
+          }
+          syncFieldColor(comp);
+        }
+      });
+    }
+
+    private String cleanText(JTextComponent comp) {
+      String ph = (String) comp.getClientProperty("placeholder.text");
+      String txt = comp.getText();
+      Boolean active = (Boolean) comp.getClientProperty("placeholder.active");
+      if (Boolean.TRUE.equals(active) && ph != null && ph.equals(txt)) return "";
+      return txt;
+    }
+
+    private void setField(JTextComponent comp, String value) {
+      String ph = (String) comp.getClientProperty("placeholder.text");
+      if (value == null) value = "";
+      comp.setText(value);
+      comp.putClientProperty("placeholder.active", Boolean.FALSE);
+      if (value.isEmpty() && ph != null) {
+        comp.setText(ph);
+        comp.putClientProperty("placeholder.active", Boolean.TRUE);
+      }
+      syncFieldColor(comp);
+    }
+
+    private void refreshFieldColors() {
+      for (JTextComponent comp : allFields) {
+        syncFieldColor(comp);
+      }
+    }
+
+    private void syncFieldColor(JTextComponent comp) {
+      ThemePalette palette = ThemeManager.palette();
+      boolean active = Boolean.TRUE.equals(comp.getClientProperty("placeholder.active"));
+      comp.setForeground(active ? palette.placeholder() : palette.text());
+      comp.setCaretColor(palette.text());
+      comp.setBackground(palette.card());
+    }
+
+    private JTextArea createAddressArea() {
+      JTextArea area = new JTextArea(3, 20);
+      area.setLineWrap(true);
+      area.setWrapStyleWord(true);
+      Border border = UIManager.getBorder("TextField.border");
+      if (border != null) {
+        area.setBorder(border);
+      }
+      return area;
+    }
+
+    private BigDecimal parsePercent(JTextComponent comp) {
+      return parsePercent(comp.getText());
+    }
+
+    private BigDecimal parsePercent(String value) {
+      try {
+        if (value == null) return BigDecimal.ZERO;
+        String cleaned = value.trim().replace(',', '.');
+        if (cleaned.isEmpty()) return BigDecimal.ZERO;
+        return new BigDecimal(cleaned);
+      } catch (Exception e) {
+        return BigDecimal.ZERO;
+      }
+    }
+
+    private String formatPercent(BigDecimal value) {
+      if (value == null) return "";
+      return value.stripTrailingZeros().toPlainString();
+    }
+
+    private BigDecimal nz(BigDecimal value) {
+      return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private void registerTotalsListener(JTextComponent comp) {
+      comp.getDocument().addDocumentListener(new DocumentListener() {
+        @Override public void insertUpdate(DocumentEvent e) { updateTotals(); }
+        @Override public void removeUpdate(DocumentEvent e) { updateTotals(); }
+        @Override public void changedUpdate(DocumentEvent e) { updateTotals(); }
+      });
+    }
+}

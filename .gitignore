@@ -1,0 +1,71 @@
+# macOS / Windows desktop metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+.factorypath
+*.swp
+*.swo
+
+# Java and Maven outputs
+target/
+out/
+build/
+dist/
+*.class
+*.jar
+*.war
+*.ear
+dependency-reduced-pom.xml
+release.properties
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+
+# Packaged desktop artifacts
+*.dmg
+*.pkg
+*.msi
+*.exe
+*.deb
+*.rpm
+
+# Local application data and working files
+.invocely/
+output/
+tmp/
+
+# Logs, crashes, and temporary files
+*.log
+*.tmp
+*.temp
+*.pid
+*.jfr
+hs_err_pid*
+replay_pid*
+
+# Test and coverage outputs
+coverage/
+jacoco.exec
+.surefire-*
+
+# Local environment files
+.env
+.env.*
+!.env.example
