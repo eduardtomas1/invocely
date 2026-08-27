@@ -6,13 +6,14 @@ import models.InvoiceData;
 import models.LineItem;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /** Shared safety bounds for editable documents and every persistence/export sink. */
 public final class DocumentValidator {
     public static final int MAX_LINES = 10_000;
     public static final int MAX_TEXT_LENGTH = 20_000;
-    public static final int MAX_TOTAL_TEXT_LENGTH = 400_000;
+    public static final int MAX_TOTAL_TEXT_BYTES = 1_000_000;
     private static final BigDecimal MAX_ABSOLUTE_NUMBER = new BigDecimal("1000000000000000");
 
     private DocumentValidator() { }
@@ -53,8 +54,8 @@ public final class DocumentValidator {
         for (LineItem line : lines) {
             if (line == null) continue;
             validateText(line.getDescription());
-            textLength += length(line.getDescription());
-            validateTotalTextLength(textLength);
+            textLength += encodedLength(line.getDescription());
+            validateTotalTextBytes(textLength);
             validateNumber(line.getQuantity());
             validateNumber(line.getUnitPrice());
             validatePercent(line.getDiscountPercent());
@@ -71,18 +72,18 @@ public final class DocumentValidator {
         long total = 0;
         for (String value : values) {
             validateText(value);
-            total += length(value);
+            total += encodedLength(value);
         }
-        validateTotalTextLength(total);
+        validateTotalTextBytes(total);
         return total;
     }
 
-    private static int length(String value) {
-        return value != null ? value.length() : 0;
+    private static int encodedLength(String value) {
+        return value != null ? value.getBytes(StandardCharsets.UTF_8).length : 0;
     }
 
-    private static void validateTotalTextLength(long length) {
-        if (length > MAX_TOTAL_TEXT_LENGTH) {
+    private static void validateTotalTextBytes(long length) {
+        if (length > MAX_TOTAL_TEXT_BYTES) {
             throw new IllegalArgumentException(I18n.t("validation.document_too_large"));
         }
     }

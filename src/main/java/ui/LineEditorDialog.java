@@ -10,6 +10,7 @@ import java.awt.event.WindowEvent;
 
 public class LineEditorDialog extends JDialog {
   private final ItemTablePanel panel;
+  private final boolean initialSplitLines;
 
   public LineEditorDialog(Frame owner, LineTableModel model, boolean splitLines) {
     super(owner, I18n.t("table.edit_lines"), true);
@@ -25,6 +26,7 @@ public class LineEditorDialog extends JDialog {
     panel = new ItemTablePanel(model);
     panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
     panel.setSplitLines(splitLines);
+    initialSplitLines = splitLines;
 
     add(panel, BorderLayout.CENTER);
     add(buildActions(), BorderLayout.SOUTH);
@@ -34,6 +36,15 @@ public class LineEditorDialog extends JDialog {
 
   public boolean getSplitLines() {
     return panel.isSplitLines();
+  }
+
+  public boolean hasPendingChanges() {
+    return hasPendingChanges(panel.hasPendingChanges(), panel.isSplitLines(), initialSplitLines);
+  }
+
+  static boolean hasPendingChanges(boolean tablePending, boolean currentSplitLines,
+                                   boolean initialSplitLines) {
+    return tablePending || currentSplitLines != initialSplitLines;
   }
 
   private JPanel buildActions() {

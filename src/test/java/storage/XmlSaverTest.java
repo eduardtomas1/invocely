@@ -169,6 +169,18 @@ class XmlSaverTest {
     }
 
     @Test
+    void rejectsQuoteWithoutExplicitValidityBeforeWritingXml() {
+        BudgetData missingValidity = new BudgetData("Q-1", LocalDate.of(2026, 1, 1), null,
+                "Supplier", "ID", "Address", "Client", "ID2", "Address2", "Terms", "Notes",
+                true, "VAT", new BigDecimal("21"), false, Collections.emptyList());
+        Path target = tempDir.resolve("missing-validity.xml");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new XmlSaver(tempDir).saveBudget(missingValidity, target));
+        assertFalse(Files.exists(target));
+    }
+
+    @Test
     void convenienceSaveValidatesBeforeCreatingStorageDirectories() {
         XmlSaver saver = new XmlSaver(tempDir);
 
@@ -195,6 +207,21 @@ class XmlSaverTest {
 
         assertEquals(DocumentValidator.MAX_LINES, loaded.getLines().size());
         assertTrue(Files.size(target) < 5L * 1024L * 1024L);
+    }
+
+    @Test
+    void xmlExpansionCannotCreateADraftThatTheImporterRejects() {
+        LineItem escaped = new LineItem("&".repeat(90),
+                BigDecimal.ONE, BigDecimal.TEN, BigDecimal.ZERO, LineCategory.MATERIAL);
+        InvoiceData invoice = new InvoiceData("EXPANDED", LocalDate.of(2026, 1, 1),
+                "Issuer", "ID", "Address", "Account", "Customer", "ID2", "Address2",
+                BigDecimal.ZERO, false, Collections.nCopies(DocumentValidator.MAX_LINES, escaped));
+        Path target = tempDir.resolve("expanded.xml");
+
+        assertDoesNotThrow(() -> DocumentValidator.validateInvoice(invoice));
+        assertThrows(IllegalArgumentException.class,
+                () -> new XmlSaver(tempDir).saveInvoice(invoice, target));
+        assertFalse(Files.exists(target));
     }
 
     private String invoiceXml(String vat) {

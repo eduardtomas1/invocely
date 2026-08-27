@@ -304,21 +304,24 @@ public class ItemTablePanel extends JPanel {
     header.setBackground(headerBackground());
     header.setForeground(headerForeground());
 
-    int[] widths = {300, 90, 110, 100, 110};
-    for (int i = 0; i < widths.length && i < t.getColumnModel().getColumnCount(); i++) {
-      t.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
-    }
-
-    DescriptionCellRenderer descRenderer = new DescriptionCellRenderer();
-    t.getColumnModel().getColumn(0).setCellRenderer(descRenderer);
-    t.getColumnModel().getColumn(0).setCellEditor(new DescriptionCellEditor());
-    t.getColumnModel().getColumn(1).setCellEditor(new NumberCellEditor(false));
-    t.getColumnModel().getColumn(2).setCellEditor(new NumberCellEditor(false));
-    t.getColumnModel().getColumn(3).setCellEditor(new NumberCellEditor(true));
-    applyEditorTheme(t);
+    configureColumns(t);
 
     tables.add(t);
     return t;
+  }
+
+  private void configureColumns(JTable table) {
+    int[] widths = {300, 90, 110, 100, 110};
+    for (int i = 0; i < widths.length && i < table.getColumnModel().getColumnCount(); i++) {
+      table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+    }
+    if (table.getColumnModel().getColumnCount() < 4) return;
+    table.getColumnModel().getColumn(0).setCellRenderer(new DescriptionCellRenderer());
+    table.getColumnModel().getColumn(0).setCellEditor(new DescriptionCellEditor());
+    table.getColumnModel().getColumn(1).setCellEditor(new NumberCellEditor(false));
+    table.getColumnModel().getColumn(2).setCellEditor(new NumberCellEditor(false));
+    table.getColumnModel().getColumn(3).setCellEditor(new NumberCellEditor(true));
+    applyEditorTheme(table);
   }
 
   private JScrollPane wrapTable(JTable table) {
@@ -385,7 +388,7 @@ public class ItemTablePanel extends JPanel {
       table.setGridColor(borderColor());
       table.getTableHeader().setBackground(headerBackground());
       table.getTableHeader().setForeground(headerForeground());
-      applyEditorTheme(table);
+      configureColumns(table);
     }
     for (JScrollPane scroll : scrolls) {
       scroll.getViewport().setBackground(cardBackground());

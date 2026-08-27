@@ -67,6 +67,32 @@ class LineTableEditingTest {
         });
     }
 
+    @Test
+    void refreshingColumnsKeepsImmediateNumericValidationInstalled() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            ItemTablePanel panel = new ItemTablePanel();
+            panel.getModel().addEmpty();
+            panel.refreshTheme();
+            JTable table = firstTable(panel);
+
+            assertTrue(table.editCellAt(0, 1));
+            JTextField editor = (JTextField) table.getEditorComponent();
+            editor.setText("not a number");
+
+            assertThrows(ItemTablePanel.PendingEditException.class, panel::requireCommittedEdits);
+            assertTrue(table.isEditing());
+            assertEquals(I18n.t("validation.invalid_number"),
+                    editor.getClientProperty("validation.message"));
+        });
+    }
+
+    @Test
+    void modalSplitToggleCountsAsPendingWorkBeforeQuit() {
+        assertFalse(LineEditorDialog.hasPendingChanges(false, false, false));
+        assertTrue(LineEditorDialog.hasPendingChanges(false, true, false));
+        assertTrue(LineEditorDialog.hasPendingChanges(true, false, false));
+    }
+
     @SuppressWarnings("unchecked")
     private JTable firstTable(ItemTablePanel panel) {
         try {

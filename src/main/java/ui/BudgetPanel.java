@@ -215,10 +215,8 @@ public class BudgetPanel extends JPanel {
     cleanState = captureState();
   }
 
-  public void markCleanIfUnchanged(DraftState savedDraft) {
-    if (savedDraft != null && captureState().equals(savedDraft.current)) {
-      cleanState = savedDraft.current.copy();
-    }
+  public void markSavedSnapshot(DraftState savedDraft) {
+    if (savedDraft != null) cleanState = savedDraft.current.copy();
   }
 
   public static final class DraftState {

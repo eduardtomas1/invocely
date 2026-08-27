@@ -77,12 +77,14 @@ class DocumentDirtyStateTest {
             InvoicePanel.DraftState savedDraft = panel.snapshotDraft();
 
             field(panel, "tfNumber").setText("edited while saving");
-            panel.markCleanIfUnchanged(savedDraft);
+            panel.markSavedSnapshot(savedDraft);
             assertTrue(panel.isDirty(), "later edits must remain unsaved after background completion");
 
             field(panel, "tfNumber").setText("saved snapshot");
-            panel.markCleanIfUnchanged(savedDraft);
-            assertFalse(panel.isDirty());
+            assertFalse(panel.isDirty(), "the written snapshot is now the clean baseline");
+
+            field(panel, "tfNumber").setText("");
+            assertTrue(panel.isDirty(), "the pre-save baseline no longer represents the file on disk");
         });
     }
 

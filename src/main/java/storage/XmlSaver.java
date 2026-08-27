@@ -11,6 +11,7 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.math.BigDecimal;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
@@ -28,6 +29,7 @@ import org.w3c.dom.Element;
 public class XmlSaver {
     private static final long MAX_XML_BYTES = 5L * 1024L * 1024L;
     private static final int MAX_LINES = 10_000;
+    private static final BigDecimal MAX_ABSOLUTE_NUMBER = new BigDecimal("1000000000000000");
     private final Path baseDir;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -253,7 +255,7 @@ public class XmlSaver {
             }
         }
         String value = element != null ? element.getTextContent() : "";
-        if (value != null && value.length() > MAX_TEXT_LENGTH) {
+        if (value != null && value.length() > DocumentValidator.MAX_TEXT_LENGTH) {
             throw new IllegalArgumentException(I18n.t("xml.field_too_long", tag));
         }
         return value != null ? value : "";
@@ -398,8 +400,12 @@ public class XmlSaver {
         Transformer t = SecureXml.newTransformerFactory().newTransformer();
         t.setOutputProperty(OutputKeys.INDENT, "yes");
         t.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-        SafeFiles.writeAtomically(target, true,
-                output -> t.transform(new DOMSource(doc), new StreamResult(output)));
+        ByteArrayOutputStream xml = new ByteArrayOutputStream();
+        t.transform(new DOMSource(doc), new StreamResult(xml));
+        if (xml.size() > MAX_XML_BYTES) {
+            throw new IllegalArgumentException(I18n.t("validation.document_too_large"));
+        }
+        SafeFiles.writeAtomically(target, true, xml::writeTo);
     }
 
     private String safeName(String s) {

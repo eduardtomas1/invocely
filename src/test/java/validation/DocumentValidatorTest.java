@@ -28,7 +28,7 @@ class DocumentValidatorTest {
         LineItem maximumField = new LineItem("x".repeat(DocumentValidator.MAX_TEXT_LENGTH),
                 BigDecimal.ONE, BigDecimal.TEN, BigDecimal.ZERO, LineCategory.MATERIAL);
         InvoiceData unsafe = invoice("",
-                Collections.nCopies(DocumentValidator.MAX_TOTAL_TEXT_LENGTH
+                Collections.nCopies(DocumentValidator.MAX_TOTAL_TEXT_BYTES
                         / DocumentValidator.MAX_TEXT_LENGTH + 1, maximumField));
 
         assertThrows(IllegalArgumentException.class,
