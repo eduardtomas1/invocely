@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible problem with Invoicely
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Do not include invoices, customer data, credentials, or security
+        details. For a vulnerability, follow
+        [SECURITY.md](https://github.com/eduardtomas1/invocely/security/policy)
+        instead.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How can we reproduce it?
+      description: List the smallest reliable set of steps.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Invoicely version
+      description: Give the release tag or commit hash.
+    validations:
+      required: true
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add sanitized logs, screenshots, or other useful details.
