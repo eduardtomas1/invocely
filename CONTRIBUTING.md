@@ -26,7 +26,18 @@ On macOS with a JDK that includes `jpackage`:
 ./scripts/package-macos.sh
 ```
 
+For a local performance comparison, run the dependency-free probe in fresh JVMs before and after
+a change. It exercises startup-relevant initialization, maximum-line-count XML round trips,
+500-line invoice and quote PDF generation, and Swing event-queue responsiveness during a draft save:
+
+```bash
+./mvnw -B -ntp -Dexec.classpathScope=test -Dexec.executable=java \
+  -Dexec.args="-cp %classpath app.invocely.PerformanceBenchmark" test-compile exec:exec
+```
+
+The probe reports timings rather than enforcing machine-dependent pass/fail thresholds. The regular
+test suite contains deterministic assertions for the event-thread boundary and saved-data snapshot.
+
 ## Scope
 
 Keep each pull request easy to review. Explain the user-visible result, the risk being addressed, and the exact verification performed.
-

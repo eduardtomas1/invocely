@@ -30,7 +30,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 /**
@@ -259,22 +258,24 @@ public class InvoicelyApp extends JFrame {
     }
 
     private void doSaveXml() {
+        if (backgroundTaskRunning) return;
         try {
-            XmlSaver saver = new XmlSaver();
             if (currentType() == DocumentType.INVOICE) {
                 InvoiceData inv = invoicePanel.collect();
                 String baseName = buildBaseName("factura", inv.getInvoiceNumber());
                 Path target = pickSavePath(I18n.t("dialog.save_invoice_xml"), baseName, "xml", AppPreferences.KEY_XML_DIR);
                 if (target == null) return;
-                saver.saveInvoice(inv, target);
-                JOptionPane.showMessageDialog(this, I18n.t("msg.invoice_saved_xml", target.toString()));
+                runInBackground(() -> new XmlSaver().saveInvoice(inv, target),
+                        saved -> JOptionPane.showMessageDialog(this,
+                                I18n.t("msg.invoice_saved_xml", saved.toString())));
             } else {
                 BudgetData bud = budgetPanel.collect();
                 String baseName = buildBaseName("pressupost", bud.getBudgetNumber());
                 Path target = pickSavePath(I18n.t("dialog.save_budget_xml"), baseName, "xml", AppPreferences.KEY_XML_DIR);
                 if (target == null) return;
-                saver.saveBudget(bud, target);
-                JOptionPane.showMessageDialog(this, I18n.t("msg.budget_saved_xml", target.toString()));
+                runInBackground(() -> new XmlSaver().saveBudget(bud, target),
+                        saved -> JOptionPane.showMessageDialog(this,
+                                I18n.t("msg.budget_saved_xml", saved.toString())));
             }
         } catch (Exception ex) {
             showError(ex);
@@ -520,24 +521,18 @@ public class InvoicelyApp extends JFrame {
         if (backgroundTaskRunning) return;
         backgroundTaskRunning = true;
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-        new SwingWorker<T, Void>() {
-            @Override protected T doInBackground() throws Exception {
-                return work.call();
-            }
+        BackgroundTaskRunner.run(work, result -> {
+            finishBackgroundTask();
+            onSuccess.accept(result);
+        }, error -> {
+            finishBackgroundTask();
+            showError(error);
+        });
+    }
 
-            @Override protected void done() {
-                backgroundTaskRunning = false;
-                setCursor(Cursor.getDefaultCursor());
-                try {
-                    onSuccess.accept(get());
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                    showError(ex);
-                } catch (ExecutionException ex) {
-                    showError(ex.getCause() != null ? ex.getCause() : ex);
-                }
-            }
-        }.execute();
+    private void finishBackgroundTask() {
+        backgroundTaskRunning = false;
+        setCursor(Cursor.getDefaultCursor());
     }
 
     private void showError(Throwable error) {
