@@ -64,12 +64,17 @@ For v1.1.0 and later:
 
 1. Open the [latest release](https://github.com/eduardtomas1/invocely/releases/latest) and confirm it is v1.1.0 or newer.
 2. Download the Apple-silicon DMG.
-3. Open it and drag **Invoicely** to **Applications**.
-4. On first launch, right-click Invoicely and choose **Open** if macOS blocks the community build.
+3. Download `SHA256SUMS` and verify the DMG before opening it:
 
-The current DMG is ad-hoc signed and not Apple-notarized. macOS may therefore show an extra safety prompt. Do not bypass a warning if the file came from anywhere other than this repository's Releases page.
+   ```bash
+   grep 'Invoicely-.*-macos-apple-silicon.dmg' SHA256SUMS | shasum -a 256 --check
+   ```
 
-The release also includes a Java 11-compatible JAR. Its core behavior is tested on Linux with Java 11 and the current LTS JDK; Windows packaging and the Windows desktop experience are not yet verified.
+4. Open the DMG and drag **Invoicely** to **Applications**.
+
+The v1.1.x release workflow requires a Developer ID Application signature and successful Apple notarization; it will not create a draft release from an ad-hoc-signed fallback. The older v1.0.0 DMG is not covered by that guarantee. Do not bypass a macOS warning or use a download obtained anywhere other than this repository's Releases page.
+
+The release also includes a Java 11-compatible JAR, a CycloneDX SBOM, SHA-256 checksums, and GitHub build-provenance and SBOM attestations for the JAR and DMG. Its core behavior is tested on Linux with Java 11 and the current LTS JDK; Windows packaging and the Windows desktop experience are not yet verified.
 
 ```bash
 java -jar invocely-1.1.0-standalone.jar
@@ -131,6 +136,8 @@ To create a self-contained macOS installer, use a JDK that includes `jpackage` (
 ```bash
 ./scripts/package-macos.sh
 ```
+
+This local command does not use release credentials, so its DMG is not Developer ID signed or Apple-notarized. Maintainers should follow [the trusted release runbook](docs/RELEASING.md) for releases.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Please report sensitive issues according to [SECURITY.md](SECURITY.md).
 

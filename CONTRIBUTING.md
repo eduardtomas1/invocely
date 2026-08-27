@@ -26,6 +26,8 @@ On macOS with a JDK that includes `jpackage`:
 ./scripts/package-macos.sh
 ```
 
+Local DMGs are development artifacts without Developer ID signing or Apple notarization. Maintainers preparing a release must follow [the trusted release runbook](docs/RELEASING.md); the automated workflow creates a draft and never publishes it.
+
 For a local performance comparison, run the dependency-free probe in fresh JVMs before and after
 a change. It exercises startup-relevant initialization, maximum-line-count XML round trips,
 500-line invoice and quote PDF generation, and Swing event-queue responsiveness during a draft save:
