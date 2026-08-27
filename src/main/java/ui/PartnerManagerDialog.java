@@ -58,6 +58,7 @@ public class PartnerManagerDialog extends JDialog {
         JLabel label = new JLabel(I18n.t("partner.search.label"));
         label.setFont(label.getFont().deriveFont(Font.BOLD));
         label.setForeground(palette.muted());
+        AccessibilitySupport.bindLabel(label, tfSearch);
         panel.add(label, BorderLayout.WEST);
         panel.add(tfSearch, BorderLayout.CENTER);
         panel.setOpaque(false);
@@ -260,6 +261,7 @@ public class PartnerManagerDialog extends JDialog {
         JLabel lbl = new JLabel(label);
         lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
         lbl.setForeground(palette.muted());
+        AccessibilitySupport.bindLabel(lbl, field);
         form.add(lbl, gbc);
         gbc.gridx = 1;
         gbc.weightx = 1;

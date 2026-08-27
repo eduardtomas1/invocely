@@ -75,7 +75,7 @@ public final class ThemeManager {
         UIManager.put("TextComponent.arc", 12);
         UIManager.put("Panel.arc", 16);
         UIManager.put("ScrollBar.thumbArc", 14);
-        UIManager.put("Component.focusWidth", 1);
+        UIManager.put("Component.focusWidth", 2);
         UIManager.put("Button.innerFocusWidth", 1);
         UIManager.put("Component.focusColor", accent);
         UIManager.put("App.accent", accent);

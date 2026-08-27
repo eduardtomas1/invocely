@@ -279,7 +279,9 @@ public class BudgetPanel extends JPanel {
       gbc.weightx = 0;
       gbc.fill = GridBagConstraints.HORIZONTAL;
       gbc.weighty = 0;
-      section.add(createLabel(labels[i]), gbc);
+      JLabel label = createLabel(labels[i]);
+      AccessibilitySupport.bindLabel(label, fields[i]);
+      section.add(label, gbc);
 
       gbc.gridx = 1;
       gbc.weightx = 1;
@@ -334,7 +336,9 @@ public class BudgetPanel extends JPanel {
       gbc.weightx = 0;
       gbc.fill = GridBagConstraints.HORIZONTAL;
       gbc.weighty = 0;
-      section.add(createLabel(labels[i]), gbc);
+      JLabel label = createLabel(labels[i]);
+      AccessibilitySupport.bindLabel(label, fields[i]);
+      section.add(label, gbc);
 
       gbc.gridx = 1;
       gbc.weightx = 1;
@@ -495,6 +499,7 @@ public class BudgetPanel extends JPanel {
 
   private void applyPlaceholder(JTextComponent comp, String placeholder) {
     comp.putClientProperty("placeholder.text", placeholder);
+    AccessibilitySupport.describe(comp, I18n.t("accessibility.example", placeholder.replace('\n', ' ')));
     if (comp.getText().isEmpty()) {
       comp.setText(placeholder);
       comp.putClientProperty("placeholder.active", Boolean.TRUE);

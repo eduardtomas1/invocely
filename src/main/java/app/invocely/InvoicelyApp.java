@@ -13,7 +13,9 @@ import ui.AppIcons;
 import ui.BudgetPanel;
 import ui.DefaultsDialog;
 import ui.DocTypeDialog;
+import ui.ExportFileActions;
 import ui.InvoicePanel;
+import ui.KeyboardShortcuts;
 import ui.PartnerManagerDialog;
 import ui.ThemeManager;
 import ui.ThemePalette;
@@ -22,12 +24,15 @@ import javax.swing.*;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.event.KeyEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
@@ -100,6 +105,8 @@ public class InvoicelyApp extends JFrame {
         JMenuItem saveXml    = new JMenuItem(I18n.t("menu.file.save_xml"));
         JMenuItem importInvXml = new JMenuItem(I18n.t("menu.file.import_invoice"));
         JMenuItem importBudXml = new JMenuItem(I18n.t("menu.file.import_budget"));
+        exportPdf.setAccelerator(KeyboardShortcuts.menu(KeyEvent.VK_E));
+        saveXml.setAccelerator(KeyboardShortcuts.menu(KeyEvent.VK_S));
         file.add(exportPdf);
         file.add(exportXlsx);
         file.add(exportCsv);
@@ -132,6 +139,8 @@ public class InvoicelyApp extends JFrame {
         JMenu view = new JMenu(I18n.t("menu.view"));
         JMenuItem switchToInv = new JMenuItem(I18n.t("menu.view.invoice"));
         JMenuItem switchToBud = new JMenuItem(I18n.t("menu.view.budget"));
+        switchToInv.setAccelerator(KeyboardShortcuts.menu(KeyEvent.VK_1));
+        switchToBud.setAccelerator(KeyboardShortcuts.menu(KeyEvent.VK_2));
         view.add(switchToInv);
         view.add(switchToBud);
         view.addSeparator();
@@ -241,7 +250,7 @@ public class InvoicelyApp extends JFrame {
                 runInBackground(() -> {
                     reportGenerator.exportInvoice(inv, type, target, exportLocale);
                     return target;
-                }, saved -> JOptionPane.showMessageDialog(this, I18n.t("msg.export_ok", saved.toString())));
+                }, this::showExportSuccess);
             } else {
                 BudgetData bud = budgetPanel.collect();
                 String baseName = buildBaseName("pressupost", bud.getBudgetNumber());
@@ -250,7 +259,7 @@ public class InvoicelyApp extends JFrame {
                 runInBackground(() -> {
                     reportGenerator.exportBudget(bud, type, target, exportLocale);
                     return target;
-                }, saved -> JOptionPane.showMessageDialog(this, I18n.t("msg.export_ok", saved.toString())));
+                }, this::showExportSuccess);
             }
         } catch (Exception ex) {
             showError(ex);
@@ -539,6 +548,41 @@ public class InvoicelyApp extends JFrame {
         String message = error != null ? error.getMessage() : null;
         if (message == null || message.isBlank()) message = I18n.t("msg.unexpected_error");
         JOptionPane.showMessageDialog(this, message, I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
+    }
+
+    private void showExportSuccess(Path saved) {
+        List<String> options = new ArrayList<>();
+        int openIndex = -1;
+        int revealIndex = -1;
+        if (ExportFileActions.canOpen()) {
+            openIndex = options.size();
+            options.add(I18n.t("action.open_export"));
+        }
+        if (ExportFileActions.canReveal()) {
+            revealIndex = options.size();
+            options.add(I18n.t("action.reveal_export"));
+        }
+        options.add(I18n.t("common.close"));
+
+        int choice = JOptionPane.showOptionDialog(
+            this,
+            I18n.t("msg.export_ok", saved.toString()),
+            I18n.t("dialog.export_complete"),
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.INFORMATION_MESSAGE,
+            null,
+            options.toArray(),
+            options.get(options.size() - 1)
+        );
+        try {
+            if (openIndex >= 0 && choice == openIndex) {
+                ExportFileActions.open(saved);
+            } else if (revealIndex >= 0 && choice == revealIndex) {
+                ExportFileActions.reveal(saved);
+            }
+        } catch (IOException ex) {
+            showError(ex);
+        }
     }
 
     private void refreshTheme() {
