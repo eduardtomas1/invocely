@@ -130,6 +130,25 @@ class ReportGeneratorTest {
         assertFalse(quoteText.contains("Cant\\."), quoteText);
     }
 
+    @Test
+    void rejectsUnsafeDocumentBeforeReportRendering() {
+        InvoiceData unsafeText = invoice(Arrays.asList(new LineItem("Work", BigDecimal.ONE,
+                BigDecimal.TEN, BigDecimal.ZERO, LineCategory.SERVEI)), "x".repeat(20_001));
+        InvoiceData unsafeNumber = invoice(Arrays.asList(new LineItem("Work", BigDecimal.ONE,
+                new BigDecimal("1E+7"), BigDecimal.ZERO, LineCategory.SERVEI)), "Issuer");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> generator.prepareInvoice(unsafeText, Locale.forLanguageTag("en-US")));
+        assertThrows(IllegalArgumentException.class,
+                () -> generator.prepareInvoice(unsafeNumber, Locale.forLanguageTag("en-US")));
+
+        BudgetData missingValidity = new BudgetData("Q-1", LocalDate.of(2026, 1, 15), null,
+                "Supplier", "ID", "Address", "Client", "ID2", "Address 2", "Terms", "Notes",
+                true, "VAT", new BigDecimal("21"), false, Arrays.asList());
+        assertThrows(IllegalArgumentException.class,
+                () -> generator.prepareBudget(missingValidity, Locale.forLanguageTag("en-US")));
+    }
+
     private InvoiceData invoice(List<LineItem> lines, String issuer) {
         return new InvoiceData("INV-2026-001", LocalDate.of(2026, 1, 15), issuer, "ID-1",
                 "Issuer address", "ES00 0000", "Customer", "ID-2", "Customer address",

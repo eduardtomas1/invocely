@@ -12,6 +12,7 @@ import net.sf.jasperreports.engine.export.ooxml.JRXlsxExporter;
 import net.sf.jasperreports.export.SimpleOutputStreamExporterOutput;
 import net.sf.jasperreports.export.SimpleXlsxReportConfiguration;
 import storage.SafeFiles;
+import validation.DocumentValidator;
 
 import java.awt.Image;
 import java.io.InputStream;
@@ -40,6 +41,7 @@ public class ReportGenerator {
   }
 
   public void exportInvoice(InvoiceData data, String type, Path target, Locale locale) throws JRException {
+    DocumentValidator.validateInvoice(data);
     boolean csv = "csv".equalsIgnoreCase(type);
     Map<String, Object> params = buildInvoiceParams(data, locale);
     JasperPrint print = fill(invoiceTemplate(locale), csvSafeParams(params, csv), lineDataSource(data, csv));
@@ -51,6 +53,7 @@ public class ReportGenerator {
   }
 
   public void exportBudget(BudgetData data, String type, Path target, Locale locale) throws JRException {
+    DocumentValidator.validateBudget(data);
     boolean csv = "csv".equalsIgnoreCase(type);
     Map<String, Object> params = buildBudgetParams(data, locale);
     JasperPrint print = fill(budgetTemplate(locale), csvSafeParams(params, csv), lineDataSource(data, csv));
@@ -58,10 +61,12 @@ public class ReportGenerator {
   }
 
   JasperPrint prepareInvoice(InvoiceData data, Locale locale) throws JRException {
+    DocumentValidator.validateInvoice(data);
     return fill(invoiceTemplate(locale), buildInvoiceParams(data, locale), lineDataSource(data, false));
   }
 
   JasperPrint prepareBudget(BudgetData data, Locale locale) throws JRException {
+    DocumentValidator.validateBudget(data);
     return fill(budgetTemplate(locale), buildBudgetParams(data, locale), lineDataSource(data, false));
   }
 

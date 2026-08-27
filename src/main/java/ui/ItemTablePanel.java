@@ -10,9 +10,12 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
+import javax.swing.border.Border;
 import java.awt.*;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  *
@@ -65,14 +68,61 @@ public class ItemTablePanel extends JPanel {
     viewPanel.add(buildSplitView(), "split");
     add(viewPanel, BorderLayout.CENTER);
 
-    splitToggle.addActionListener(e -> applySplitState(splitToggle.isSelected()));
+    splitToggle.addActionListener(e -> {
+      if (!commitPendingEdits()) {
+        splitToggle.setSelected(splitLines);
+        return;
+      }
+      applySplitState(splitToggle.isSelected());
+    });
     applySplitState(false);
   }
 
   public LineTableModel getModel() { return model; }
 
   public void setItems(List<LineItem> items) {
+    cancelPendingEdits();
     model.setItems(items);
+  }
+
+  public void requireCommittedEdits() {
+    if (!commitPendingEdits()) {
+      throw new PendingEditException(I18n.t("validation.invalid_table_edit"));
+    }
+  }
+
+  public boolean hasPendingChanges() {
+    for (JTable table : tables) {
+      if (!table.isEditing() || table.getCellEditor() == null) continue;
+      int modelRow = table.convertRowIndexToModel(table.getEditingRow());
+      int modelColumn = table.convertColumnIndexToModel(table.getEditingColumn());
+      Object committed = model.getValueAt(modelRow, modelColumn);
+      TableCellEditor editor = table.getCellEditor();
+      if (editor instanceof NumberCellEditor) {
+        if (((NumberCellEditor) editor).differsFrom(committed)) return true;
+      } else if (!Objects.equals(editor.getCellEditorValue(), committed)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public void cancelPendingEdits() {
+    for (JTable table : tables) {
+      if (table.isEditing() && table.getCellEditor() != null) {
+        table.getCellEditor().cancelCellEditing();
+      }
+    }
+  }
+
+  private boolean commitPendingEdits() {
+    for (JTable table : tables) {
+      if (table.isEditing() && table.getCellEditor() != null
+          && !table.getCellEditor().stopCellEditing()) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public boolean isSplitLines() {
@@ -254,21 +304,24 @@ public class ItemTablePanel extends JPanel {
     header.setBackground(headerBackground());
     header.setForeground(headerForeground());
 
-    int[] widths = {300, 90, 110, 100, 110};
-    for (int i = 0; i < widths.length && i < t.getColumnModel().getColumnCount(); i++) {
-      t.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
-    }
-
-    DescriptionCellRenderer descRenderer = new DescriptionCellRenderer();
-    t.getColumnModel().getColumn(0).setCellRenderer(descRenderer);
-    t.getColumnModel().getColumn(0).setCellEditor(new DescriptionCellEditor());
-    t.getColumnModel().getColumn(1).setCellEditor(new NumberCellEditor());
-    t.getColumnModel().getColumn(2).setCellEditor(new NumberCellEditor());
-    t.getColumnModel().getColumn(3).setCellEditor(new NumberCellEditor());
-    applyEditorTheme(t);
+    configureColumns(t);
 
     tables.add(t);
     return t;
+  }
+
+  private void configureColumns(JTable table) {
+    int[] widths = {300, 90, 110, 100, 110};
+    for (int i = 0; i < widths.length && i < table.getColumnModel().getColumnCount(); i++) {
+      table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+    }
+    if (table.getColumnModel().getColumnCount() < 4) return;
+    table.getColumnModel().getColumn(0).setCellRenderer(new DescriptionCellRenderer());
+    table.getColumnModel().getColumn(0).setCellEditor(new DescriptionCellEditor());
+    table.getColumnModel().getColumn(1).setCellEditor(new NumberCellEditor(false));
+    table.getColumnModel().getColumn(2).setCellEditor(new NumberCellEditor(false));
+    table.getColumnModel().getColumn(3).setCellEditor(new NumberCellEditor(true));
+    applyEditorTheme(table);
   }
 
   private JScrollPane wrapTable(JTable table) {
@@ -281,8 +334,10 @@ public class ItemTablePanel extends JPanel {
   }
 
   private void applySplitState(boolean split) {
+    boolean previous = splitLines;
     splitLines = split;
     viewLayout.show(viewPanel, split ? "split" : "single");
+    firePropertyChange("splitLines", previous, split);
     revalidate();
     repaint();
   }
@@ -306,6 +361,7 @@ public class ItemTablePanel extends JPanel {
   }
 
   private void openEditorDialog() {
+    if (!commitPendingEdits()) return;
     Window window = SwingUtilities.getWindowAncestor(this);
     Frame frame = window instanceof Frame ? (Frame) window : null;
     LineEditorDialog dialog = new LineEditorDialog(frame, model, isSplitLines());
@@ -332,7 +388,7 @@ public class ItemTablePanel extends JPanel {
       table.setGridColor(borderColor());
       table.getTableHeader().setBackground(headerBackground());
       table.getTableHeader().setForeground(headerForeground());
-      applyEditorTheme(table);
+      configureColumns(table);
     }
     for (JScrollPane scroll : scrolls) {
       scroll.getViewport().setBackground(cardBackground());
@@ -484,10 +540,16 @@ public class ItemTablePanel extends JPanel {
 
   private static class NumberCellEditor extends DefaultCellEditor {
     private final JTextField field;
+    private final boolean percent;
+    private final Border normalBorder;
+    private BigDecimal parsedValue;
+    private boolean validationDialogPending;
 
-    NumberCellEditor() {
+    NumberCellEditor(boolean percent) {
       super(new JTextField());
       field = (JTextField) getComponent();
+      this.percent = percent;
+      normalBorder = field.getBorder();
     }
 
     void applyTheme(Color background, Color foreground, Color selectedForeground, Color selectedBackground) {
@@ -501,6 +563,8 @@ public class ItemTablePanel extends JPanel {
     @Override
     public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected,
                                                  int row, int column) {
+      clearValidationError();
+      parsedValue = null;
       String text = value != null ? value.toString() : "";
       field.setText(text);
       field.selectAll();
@@ -510,6 +574,71 @@ public class ItemTablePanel extends JPanel {
       field.setSelectionColor(table.getSelectionBackground());
       field.setSelectedTextColor(table.getSelectionForeground());
       return field;
+    }
+
+    @Override
+    public boolean stopCellEditing() {
+      try {
+        parsedValue = percent
+            ? InputParser.linePercent(field.getText())
+            : InputParser.lineNumber(field.getText());
+        clearValidationError();
+        return super.stopCellEditing();
+      } catch (IllegalArgumentException ex) {
+        showValidationError(ex.getMessage());
+        return false;
+      }
+    }
+
+    @Override
+    public Object getCellEditorValue() {
+      return parsedValue;
+    }
+
+    private boolean differsFrom(Object committed) {
+      final BigDecimal pending;
+      try {
+        pending = percent
+            ? InputParser.linePercent(field.getText())
+            : InputParser.lineNumber(field.getText());
+      } catch (IllegalArgumentException ex) {
+        return true;
+      }
+      if (pending == null || committed == null) return pending != committed;
+      if (!(committed instanceof BigDecimal)) return true;
+      return pending.compareTo((BigDecimal) committed) != 0;
+    }
+
+    private void showValidationError(String message) {
+      field.setBorder(BorderFactory.createLineBorder(new Color(198, 40, 40), 2));
+      field.setToolTipText(message);
+      field.putClientProperty("validation.message", message);
+      if (!GraphicsEnvironment.isHeadless()) {
+        UIManager.getLookAndFeel().provideErrorFeedback(field);
+        if (!validationDialogPending) {
+          validationDialogPending = true;
+          SwingUtilities.invokeLater(() -> {
+            try {
+              JOptionPane.showMessageDialog(field, message, I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
+            } finally {
+              validationDialogPending = false;
+              field.requestFocusInWindow();
+            }
+          });
+        }
+      }
+    }
+
+    private void clearValidationError() {
+      field.setBorder(normalBorder);
+      field.setToolTipText(null);
+      field.putClientProperty("validation.message", null);
+    }
+  }
+
+  public static final class PendingEditException extends IllegalArgumentException {
+    PendingEditException(String message) {
+      super(message);
     }
   }
 
