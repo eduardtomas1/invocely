@@ -1,5 +1,6 @@
 package storage;
 
+import i18n.I18n;
 import models.BudgetData;
 import models.InvoiceData;
 import models.LineCategory;
@@ -146,7 +147,7 @@ public class XmlSaver {
         Document doc = parse(file);
         Element root = doc.getDocumentElement();
         if (!"factura".equalsIgnoreCase(root.getTagName())) {
-            throw new IllegalArgumentException("L'arxiu seleccionat no és una factura.");
+            throw new IllegalArgumentException(I18n.t("xml.not_invoice"));
         }
         String num = text(root, "numero");
         LocalDate data = parseDate(text(root, "data"));
@@ -183,7 +184,7 @@ public class XmlSaver {
         Document doc = parse(file);
         Element root = doc.getDocumentElement();
         if (!"pressupost".equalsIgnoreCase(root.getTagName())) {
-            throw new IllegalArgumentException("L'arxiu seleccionat no és un pressupost.");
+            throw new IllegalArgumentException(I18n.t("xml.not_budget"));
         }
         String num = text(root, "numero");
         LocalDate data = parseDate(text(root, "data"));
@@ -245,15 +246,14 @@ public class XmlSaver {
             org.w3c.dom.Node node = element.getFirstChild();
             while (node != null) {
                 if (node instanceof Element) {
-                    throw new IllegalArgumentException(
-                            "The XML field '" + tag + "' must contain plain text only.");
+                    throw new IllegalArgumentException(I18n.t("xml.field_plain_text", tag));
                 }
                 node = node.getNextSibling();
             }
         }
         String value = element != null ? element.getTextContent() : "";
         if (value != null && value.length() > MAX_TEXT_LENGTH) {
-            throw new IllegalArgumentException("The XML field '" + tag + "' is too long.");
+            throw new IllegalArgumentException(I18n.t("xml.field_too_long", tag));
         }
         return value != null ? value : "";
     }
@@ -263,7 +263,7 @@ public class XmlSaver {
         try {
             return LocalDate.parse(s.trim());
         } catch (Exception e) {
-            throw new IllegalArgumentException("The XML document contains an invalid date.", e);
+            throw new IllegalArgumentException(I18n.t("xml.invalid_date"), e);
         }
     }
 
@@ -290,17 +290,17 @@ public class XmlSaver {
         if (s == null || s.isBlank()) return BigDecimal.ZERO;
         String value = s.trim().replace(',', '.');
         if (value.length() > 64) {
-            throw new IllegalArgumentException("The XML document contains a number that is too long.");
+            throw new IllegalArgumentException(I18n.t("xml.number_too_long"));
         }
         final BigDecimal parsed;
         try {
             parsed = new BigDecimal(value);
         } catch (Exception e) {
-            throw new IllegalArgumentException("The XML document contains an invalid number.", e);
+            throw new IllegalArgumentException(I18n.t("xml.invalid_number"), e);
         }
         if (parsed.precision() > 24 || parsed.scale() < -6 || parsed.scale() > 8
                 || parsed.abs().compareTo(MAX_ABSOLUTE_NUMBER) > 0) {
-            throw new IllegalArgumentException("The XML document contains a number outside the supported range.");
+            throw new IllegalArgumentException(I18n.t("xml.number_range"));
         }
         return parsed;
     }
@@ -308,7 +308,7 @@ public class XmlSaver {
     private BigDecimal parsePercent(String s) {
         BigDecimal parsed = parseNumber(s);
         if (parsed.compareTo(BigDecimal.ZERO) < 0 || parsed.compareTo(new BigDecimal("100")) > 0) {
-            throw new IllegalArgumentException("The XML document contains a percentage outside 0–100.");
+            throw new IllegalArgumentException(I18n.t("xml.percent_range"));
         }
         return parsed;
     }
@@ -318,7 +318,7 @@ public class XmlSaver {
         String value = text(parent, tag).trim();
         if ("true".equalsIgnoreCase(value)) return true;
         if ("false".equalsIgnoreCase(value)) return false;
-        throw new IllegalArgumentException("The XML field '" + tag + "' must be true or false.");
+        throw new IllegalArgumentException(I18n.t("xml.invalid_boolean", tag));
     }
 
     private void addText(Document doc, Element parent, String tag, String text) {
@@ -350,7 +350,7 @@ public class XmlSaver {
             if (node instanceof Element && "linia".equals(((Element) node).getTagName())) {
                 elements.add((Element) node);
                 if (elements.size() > MAX_LINES) {
-                    throw new IllegalArgumentException("The XML document contains too many line items.");
+                    throw new IllegalArgumentException(I18n.t("xml.too_many_lines"));
                 }
             }
             node = node.getNextSibling();
@@ -359,7 +359,7 @@ public class XmlSaver {
     }
 
     private void validateInvoice(InvoiceData data) {
-        if (data == null) throw new IllegalArgumentException("No invoice data was provided.");
+        if (data == null) throw new IllegalArgumentException(I18n.t("validation.no_invoice_data"));
         validateText(data.getInvoiceNumber());
         validateText(data.getIssuerName());
         validateText(data.getIssuerNif());
@@ -373,7 +373,7 @@ public class XmlSaver {
     }
 
     private void validateBudget(BudgetData data) {
-        if (data == null) throw new IllegalArgumentException("No quote data was provided.");
+        if (data == null) throw new IllegalArgumentException(I18n.t("validation.no_budget_data"));
         validateText(data.getBudgetNumber());
         validateText(data.getSupplierName());
         validateText(data.getSupplierNif());
@@ -391,14 +391,14 @@ public class XmlSaver {
 
     private void validateDateRange(LocalDate issueDate, LocalDate validUntil) {
         if (issueDate != null && validUntil != null && validUntil.isBefore(issueDate)) {
-            throw new IllegalArgumentException("The quote validity date cannot be before its issue date.");
+            throw new IllegalArgumentException(I18n.t("validation.date_range"));
         }
     }
 
     private void validateLines(List<LineItem> lines) {
         if (lines == null) return;
         if (lines.size() > MAX_LINES) {
-            throw new IllegalArgumentException("The document contains too many line items.");
+            throw new IllegalArgumentException(I18n.t("validation.too_many_lines"));
         }
         for (LineItem line : lines) {
             if (line == null) continue;
@@ -411,7 +411,7 @@ public class XmlSaver {
 
     private void validateText(String value) {
         if (value != null && value.length() > MAX_TEXT_LENGTH) {
-            throw new IllegalArgumentException("A document field is too long.");
+            throw new IllegalArgumentException(I18n.t("validation.field_too_long"));
         }
     }
 
@@ -419,7 +419,7 @@ public class XmlSaver {
         if (value == null) return;
         if (value.precision() > 24 || value.scale() < -6 || value.scale() > 8
                 || value.abs().compareTo(MAX_ABSOLUTE_NUMBER) > 0) {
-            throw new IllegalArgumentException("A document number is outside the supported range.");
+            throw new IllegalArgumentException(I18n.t("validation.document_number_range"));
         }
     }
 
@@ -427,7 +427,7 @@ public class XmlSaver {
         if (value == null) return;
         validateNumber(value);
         if (value.compareTo(BigDecimal.ZERO) < 0 || value.compareTo(new BigDecimal("100")) > 0) {
-            throw new IllegalArgumentException("A document percentage is outside 0–100.");
+            throw new IllegalArgumentException(I18n.t("validation.document_percent_range"));
         }
     }
 
@@ -448,7 +448,7 @@ public class XmlSaver {
 
     private LineCategory parseCategory(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("The XML document contains an empty line category.");
+            throw new IllegalArgumentException(I18n.t("xml.empty_category"));
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         if ("servei".equals(normalized)) return LineCategory.SERVEI;
@@ -456,7 +456,7 @@ public class XmlSaver {
         try {
             return LineCategory.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (Exception e) {
-            throw new IllegalArgumentException("The XML document contains an unknown line category.", e);
+            throw new IllegalArgumentException(I18n.t("xml.unknown_category"), e);
         }
     }
 

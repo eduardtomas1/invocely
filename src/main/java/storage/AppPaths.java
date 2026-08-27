@@ -1,5 +1,7 @@
 package storage;
 
+import i18n.I18n;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,7 +32,7 @@ public final class AppPaths {
         Path base = baseDir().toAbsolutePath().normalize();
         Path target = directory.toAbsolutePath().normalize();
         if (!target.startsWith(base)) {
-            throw new IOException("Refusing to change permissions outside the Invoicely data directory.");
+            throw new IOException(I18n.t("storage.permissions_scope_error"));
         }
         Files.createDirectories(target);
         Path current = base;

@@ -126,7 +126,7 @@ public class DefaultsManager {
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
-            throw new IOException("Could not save default values.", e);
+            throw new IOException(I18n.t("storage.defaults_save_error"), e);
         }
     }
 

@@ -261,6 +261,7 @@ public class DefaultsDialog extends JDialog {
             JLabel label = new JLabel(labels[i]);
             label.setFont(label.getFont().deriveFont(Font.BOLD));
             label.setForeground(palette.text());
+            AccessibilitySupport.bindLabel(label, fields[i]);
             section.add(label, gbc);
 
             gbc.gridx = 1;

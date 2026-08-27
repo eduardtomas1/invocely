@@ -68,12 +68,13 @@ public class DocTypeDialog extends JDialog {
         buttons.setOpaque(false);
         buttons.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
 
-        buttons.add(createOptionCard(
+        JButton invoiceButton = createOptionCard(
                 I18n.t("doc_type.option.invoice"),
                 I18n.t("doc_type.option.invoice.sub"),
                 AppIcons.invoiceIcon(),
                 DocumentType.INVOICE
-        ));
+        );
+        buttons.add(invoiceButton);
         buttons.add(createOptionCard(
                 I18n.t("doc_type.option.budget"),
                 I18n.t("doc_type.option.budget.sub"),
@@ -93,6 +94,8 @@ public class DocTypeDialog extends JDialog {
         hint.setForeground(palette.muted());
         hint.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0));
         content.add(hint, BorderLayout.SOUTH);
+
+        SwingUtilities.invokeLater(invoiceButton::requestFocusInWindow);
 
         setSize(720, 360);
         setResizable(false);
@@ -116,10 +119,12 @@ public class DocTypeDialog extends JDialog {
         btn.setBorder(cardBorder(false));
         btn.setBackground(cardColor());
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btn.setFocusPainted(false);
+        btn.setFocusPainted(true);
         btn.putClientProperty("JButton.buttonType", "roundRect");
         btn.putClientProperty("JComponent.sizeVariant", "large");
         btn.setPreferredSize(new Dimension(210, 180));
+        AccessibilitySupport.name(btn, title);
+        AccessibilitySupport.describe(btn, subtitle);
 
         JLabel iconLbl = new JLabel(icon);
         iconLbl.setHorizontalAlignment(SwingConstants.CENTER);
@@ -142,7 +147,17 @@ public class DocTypeDialog extends JDialog {
             Color hoverCol = mix(base, accentColor(), 0.10f);
             Color pressCol = mix(base, accentColor(), 0.16f);
             btn.setBackground(press ? pressCol : (hover ? hoverCol : base));
-            btn.setBorder(cardBorder(hover || press));
+            btn.setBorder(cardBorder(hover || press || btn.isFocusOwner()));
+        });
+        btn.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override public void focusGained(java.awt.event.FocusEvent e) {
+                btn.setBorder(cardBorder(true));
+            }
+
+            @Override public void focusLost(java.awt.event.FocusEvent e) {
+                ButtonModel model = btn.getModel();
+                btn.setBorder(cardBorder(model.isRollover() || (model.isArmed() && model.isPressed())));
+            }
         });
 
         btn.addActionListener(e -> {

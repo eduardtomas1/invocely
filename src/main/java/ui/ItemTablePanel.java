@@ -234,6 +234,13 @@ public class ItemTablePanel extends JPanel {
     t.setForeground(tableForeground());
     t.setSelectionBackground(selectedRowColor);
     t.setSelectionForeground(selectionForeground());
+    String tableName = filter == LineCategory.MATERIAL
+        ? I18n.t("accessibility.table.materials")
+        : filter == LineCategory.SERVEI
+            ? I18n.t("accessibility.table.services")
+            : I18n.t("accessibility.table.lines");
+    AccessibilitySupport.name(t, tableName);
+    AccessibilitySupport.describe(t, I18n.t("accessibility.table.description"));
 
     TableRowSorter<LineTableModel> sorter = new TableRowSorter<>(model);
     if (filter != null) {

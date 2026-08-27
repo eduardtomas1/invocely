@@ -251,7 +251,9 @@ public class InvoicePanel extends JPanel {
         gbc.weightx = 0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weighty = 0;
-        section.add(createLabel(labels[i]), gbc);
+        JLabel label = createLabel(labels[i]);
+        AccessibilitySupport.bindLabel(label, fields[i]);
+        section.add(label, gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1;
@@ -307,7 +309,9 @@ public class InvoicePanel extends JPanel {
         gbc.weightx = 0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weighty = 0;
-        section.add(createLabel(labels[i]), gbc);
+        JLabel label = createLabel(labels[i]);
+        AccessibilitySupport.bindLabel(label, fields[i]);
+        section.add(label, gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1;
@@ -379,6 +383,7 @@ public class InvoicePanel extends JPanel {
       JLabel titleLbl = new JLabel(title);
       titleLbl.setFont(titleLbl.getFont().deriveFont(Font.BOLD));
       titleLbl.setForeground(mutedTextColor());
+      AccessibilitySupport.bindLabel(titleLbl, input);
       input.setColumns(4);
       input.setHorizontalAlignment(SwingConstants.RIGHT);
       header.add(titleLbl, BorderLayout.WEST);
@@ -510,6 +515,7 @@ public class InvoicePanel extends JPanel {
 
     private void applyPlaceholder(JTextComponent comp, String placeholder) {
       comp.putClientProperty("placeholder.text", placeholder);
+      AccessibilitySupport.describe(comp, I18n.t("accessibility.example", placeholder.replace('\n', ' ')));
       if (comp.getText().isEmpty()) {
         comp.setText(placeholder);
         comp.putClientProperty("placeholder.active", Boolean.TRUE);

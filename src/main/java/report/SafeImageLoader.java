@@ -1,5 +1,6 @@
 package report;
 
+import i18n.I18n;
 import storage.SafeFiles;
 
 import javax.imageio.ImageIO;
@@ -21,9 +22,9 @@ public final class SafeImageLoader {
     public static BufferedImage read(Path path) throws IOException {
         SafeFiles.requireReadableFile(path, MAX_FILE_BYTES);
         try (ImageInputStream input = ImageIO.createImageInputStream(path.toFile())) {
-            if (input == null) throw new IOException("The selected file is not a supported image.");
+            if (input == null) throw new IOException(I18n.t("image.unsupported"));
             Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
-            if (!readers.hasNext()) throw new IOException("The selected file is not a supported image.");
+            if (!readers.hasNext()) throw new IOException(I18n.t("image.unsupported"));
 
             ImageReader reader = readers.next();
             try {
@@ -32,10 +33,10 @@ public final class SafeImageLoader {
                 int height = reader.getHeight(0);
                 if (width <= 0 || height <= 0 || width > MAX_DIMENSION || height > MAX_DIMENSION
                         || (long) width * height > MAX_PIXELS) {
-                    throw new IOException("The selected image is too large (maximum 4096 px and 16 megapixels).");
+                    throw new IOException(I18n.t("image.too_large"));
                 }
                 BufferedImage image = reader.read(0);
-                if (image == null) throw new IOException("The selected file is not a supported image.");
+                if (image == null) throw new IOException(I18n.t("image.unsupported"));
                 return image;
             } finally {
                 reader.dispose();

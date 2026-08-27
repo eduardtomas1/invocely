@@ -1,5 +1,7 @@
 package storage;
 
+import i18n.I18n;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -34,11 +36,11 @@ public final class SafeFiles {
 
     public static void requireReadableFile(Path file, long maxBytes) throws IOException {
         if (file == null || !Files.isRegularFile(file)) {
-            throw new IOException("The selected file does not exist or is not a regular file.");
+            throw new IOException(I18n.t("storage.file_missing"));
         }
         long size = Files.size(file);
         if (size > maxBytes) {
-            throw new IOException("The selected file is too large (maximum " + humanSize(maxBytes) + ").");
+            throw new IOException(I18n.t("storage.file_too_large", humanSize(maxBytes)));
         }
     }
 
@@ -55,14 +57,14 @@ public final class SafeFiles {
     }
 
     public static void writePathAtomically(Path target, boolean privateFile, PathWriter writer) throws Exception {
-        if (target == null) throw new IOException("No target file was selected.");
+        if (target == null) throw new IOException(I18n.t("storage.target_missing"));
         Path normalized = target.toAbsolutePath().normalize();
         Path parent = normalized.getParent();
-        if (parent == null) throw new IOException("The target file has no parent directory.");
+        if (parent == null) throw new IOException(I18n.t("storage.target_parent_missing"));
         createDirectories(parent, false);
 
         Path fileNamePath = normalized.getFileName();
-        if (fileNamePath == null) throw new IOException("The target file has no file name.");
+        if (fileNamePath == null) throw new IOException(I18n.t("storage.target_name_missing"));
         String fileName = fileNamePath.toString();
         String prefix = fileName.length() >= 3 ? fileName : "inv" + fileName;
         Path temporary = Files.createTempFile(parent, "." + prefix + "-", ".tmp");
@@ -70,7 +72,7 @@ public final class SafeFiles {
         try {
             writer.write(temporary);
             if (!Files.isRegularFile(temporary)) {
-                throw new IOException("The temporary output file was not created.");
+                throw new IOException(I18n.t("storage.temporary_file_missing"));
             }
             if (privateFile) setPrivateFilePermissions(temporary);
             moveReplacing(temporary, normalized);

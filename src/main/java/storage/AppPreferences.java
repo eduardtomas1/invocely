@@ -31,8 +31,14 @@ public final class AppPreferences {
     }
 
     public static String getLanguageTag() {
-        String tag = PREFS.get(KEY_LANGUAGE, "en-US");
-        if (tag == null || tag.isBlank()) return "en-US";
+        return resolveLanguageTag(PREFS.get(KEY_LANGUAGE, null), Locale.getDefault());
+    }
+
+    static String resolveLanguageTag(String savedTag, Locale systemLocale) {
+        String tag = savedTag;
+        if (tag == null || tag.isBlank()) {
+            tag = systemLocale != null ? systemLocale.toLanguageTag() : "en-US";
+        }
         String normalized = tag.trim().toLowerCase(Locale.ROOT);
         if (normalized.startsWith("ca")) return "ca-ES";
         if (normalized.startsWith("es")) return "es-ES";
