@@ -15,6 +15,7 @@ import ui.DefaultsDialog;
 import ui.DocTypeDialog;
 import ui.ExportFileActions;
 import ui.InvoicePanel;
+import ui.ItemTablePanel;
 import ui.KeyboardShortcuts;
 import ui.PartnerManagerDialog;
 import ui.ThemeManager;
@@ -23,6 +24,8 @@ import ui.ThemePalette;
 import javax.swing.*;
 import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.awt.event.KeyEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -58,7 +61,7 @@ public class InvoicelyApp extends JFrame {
     public InvoicelyApp() {
         super(I18n.t("app.title"));
         ThemePalette palette = ThemeManager.palette();
-        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        installCloseHandlers();
         setSize(1280, 820);
         setMinimumSize(new Dimension(1024, 720));
         setLocationRelativeTo(null);
@@ -78,6 +81,7 @@ public class InvoicelyApp extends JFrame {
         Path selected = pickOpenPath(I18n.t("menu.file.import_invoice"), "xml", AppPreferences.KEY_IMPORT_DIR);
         if (selected == null) return;
         runInBackground(() -> new XmlSaver().loadInvoice(selected), data -> {
+            if (!confirmImportOverwrite(DocumentType.INVOICE)) return;
             switchDoc(DocumentType.INVOICE);
             invoicePanel.fillFromData(data);
             JOptionPane.showMessageDialog(this, I18n.t("msg.invoice_loaded"));
@@ -89,6 +93,7 @@ public class InvoicelyApp extends JFrame {
         Path selected = pickOpenPath(I18n.t("menu.file.import_budget"), "xml", AppPreferences.KEY_IMPORT_DIR);
         if (selected == null) return;
         runInBackground(() -> new XmlSaver().loadBudget(selected), data -> {
+            if (!confirmImportOverwrite(DocumentType.BUDGET)) return;
             switchDoc(DocumentType.BUDGET);
             budgetPanel.fillFromData(data);
             JOptionPane.showMessageDialog(this, I18n.t("msg.budget_loaded"));
@@ -244,6 +249,7 @@ public class InvoicelyApp extends JFrame {
             Locale exportLocale = I18n.getLocale();
             if (currentType() == DocumentType.INVOICE) {
                 InvoiceData inv = invoicePanel.collect();
+                InvoicePanel.DraftState savedDraft = invoicePanel.snapshotDraft();
                 String baseName = buildBaseName("factura", inv.getInvoiceNumber());
                 Path target = pickSavePath(I18n.t("dialog.export_title", type.toUpperCase(Locale.ROOT)), baseName, type, AppPreferences.KEY_EXPORT_DIR);
                 if (target == null) return;
@@ -275,16 +281,23 @@ public class InvoicelyApp extends JFrame {
                 Path target = pickSavePath(I18n.t("dialog.save_invoice_xml"), baseName, "xml", AppPreferences.KEY_XML_DIR);
                 if (target == null) return;
                 runInBackground(() -> new XmlSaver().saveInvoice(inv, target),
-                        saved -> JOptionPane.showMessageDialog(this,
-                                I18n.t("msg.invoice_saved_xml", saved.toString())));
+                        saved -> {
+                            invoicePanel.markCleanIfUnchanged(savedDraft);
+                            JOptionPane.showMessageDialog(this,
+                                    I18n.t("msg.invoice_saved_xml", saved.toString()));
+                        });
             } else {
                 BudgetData bud = budgetPanel.collect();
+                BudgetPanel.DraftState savedDraft = budgetPanel.snapshotDraft();
                 String baseName = buildBaseName("pressupost", bud.getBudgetNumber());
                 Path target = pickSavePath(I18n.t("dialog.save_budget_xml"), baseName, "xml", AppPreferences.KEY_XML_DIR);
                 if (target == null) return;
                 runInBackground(() -> new XmlSaver().saveBudget(bud, target),
-                        saved -> JOptionPane.showMessageDialog(this,
-                                I18n.t("msg.budget_saved_xml", saved.toString())));
+                        saved -> {
+                            budgetPanel.markCleanIfUnchanged(savedDraft);
+                            JOptionPane.showMessageDialog(this,
+                                    I18n.t("msg.budget_saved_xml", saved.toString()));
+                        });
             }
         } catch (Exception ex) {
             showError(ex);
@@ -386,11 +399,13 @@ public class InvoicelyApp extends JFrame {
                 if (data != null && invoicePanel != null) {
                     invoicePanel.applyDefaults(data);
                 }
+                if (invoicePanel != null) invoicePanel.markClean();
             } else {
                 BudgetData data = defaults.loadBudgetDefaults();
                 if (data != null && budgetPanel != null) {
                     budgetPanel.applyDefaults(data);
                 }
+                if (budgetPanel != null) budgetPanel.markClean();
             }
         } catch (Exception ex) {
             SwingUtilities.invokeLater(() -> showError(ex));
@@ -487,6 +502,13 @@ public class InvoicelyApp extends JFrame {
     private void applyLanguage(String tag) {
         if (tag == null || tag.isBlank()) return;
         if (tag.equalsIgnoreCase(I18n.getLocale().toLanguageTag())) return;
+        try {
+            if (invoicePanel != null) invoicePanel.requireCommittedTableEdits();
+            if (budgetPanel != null) budgetPanel.requireCommittedTableEdits();
+        } catch (ItemTablePanel.PendingEditException ignored) {
+            createMenuBar();
+            return;
+        }
         InvoicePanel.DraftState invoiceData = invoicePanel != null ? invoicePanel.snapshotDraft() : null;
         BudgetPanel.DraftState budgetData = budgetPanel != null ? budgetPanel.snapshotDraft() : null;
         AppPreferences.setLanguageTag(tag);
@@ -545,6 +567,7 @@ public class InvoicelyApp extends JFrame {
     }
 
     private void showError(Throwable error) {
+        if (error instanceof ItemTablePanel.PendingEditException) return;
         String message = error != null ? error.getMessage() : null;
         if (message == null || message.isBlank()) message = I18n.t("msg.unexpected_error");
         JOptionPane.showMessageDialog(this, message, I18n.t("dialog.error"), JOptionPane.ERROR_MESSAGE);
@@ -633,6 +656,59 @@ public class InvoicelyApp extends JFrame {
         tb.add(btnSaveXml);
 
         return tb;
+    }
+
+    private void installCloseHandlers() {
+        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override public void windowClosing(WindowEvent event) {
+                if (confirmCloseWithUnsavedChanges()) {
+                    dispose();
+                    System.exit(0);
+                }
+            }
+        });
+
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop desktop = Desktop.getDesktop();
+                if (desktop.isSupported(Desktop.Action.APP_QUIT_HANDLER)) {
+                    desktop.setQuitHandler((event, response) -> {
+                        if (confirmCloseWithUnsavedChanges()) response.performQuit();
+                        else response.cancelQuit();
+                    });
+                }
+            }
+        } catch (UnsupportedOperationException | SecurityException ignored) { }
+    }
+
+    private boolean confirmCloseWithUnsavedChanges() {
+        boolean invoiceDirty = invoicePanel != null && invoicePanel.isDirty();
+        boolean budgetDirty = budgetPanel != null && budgetPanel.isDirty();
+        if (!invoiceDirty && !budgetDirty) return true;
+        String messageKey = invoiceDirty && budgetDirty
+            ? "dialog.unsaved.close_both_message"
+            : invoiceDirty ? "dialog.unsaved.close_invoice_message"
+            : "dialog.unsaved.close_budget_message";
+        return showDiscardDialog(I18n.t(messageKey), I18n.t("dialog.unsaved.discard_close"));
+    }
+
+    private boolean confirmImportOverwrite(DocumentType type) {
+        boolean dirty = type == DocumentType.INVOICE
+            ? invoicePanel != null && invoicePanel.isDirty()
+            : budgetPanel != null && budgetPanel.isDirty();
+        if (!dirty) return true;
+        String messageKey = type == DocumentType.INVOICE
+            ? "dialog.unsaved.import_invoice_message"
+            : "dialog.unsaved.import_budget_message";
+        return showDiscardDialog(I18n.t(messageKey), I18n.t("dialog.unsaved.discard_import"));
+    }
+
+    private boolean showDiscardDialog(String message, String discardLabel) {
+        Object[] options = { discardLabel, I18n.t("common.cancel") };
+        int result = JOptionPane.showOptionDialog(this, message, I18n.t("dialog.unsaved.title"),
+            JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, options, options[1]);
+        return result == 0;
     }
 
     private Path pickOpenPath(String title, String extension, String prefsKey) {

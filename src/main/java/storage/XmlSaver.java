@@ -17,6 +17,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
+import validation.DocumentValidator;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -27,8 +28,6 @@ import org.w3c.dom.Element;
 public class XmlSaver {
     private static final long MAX_XML_BYTES = 5L * 1024L * 1024L;
     private static final int MAX_LINES = 10_000;
-    private static final int MAX_TEXT_LENGTH = 20_000;
-    private static final BigDecimal MAX_ABSOLUTE_NUMBER = new BigDecimal("1000000000000000");
     private final Path baseDir;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -41,6 +40,7 @@ public class XmlSaver {
     }
 
     public Path saveInvoice(InvoiceData data) throws Exception {
+        DocumentValidator.validateInvoice(data);
         Path dir = baseDir.resolve("factures");
         ensureStorageDirectory(dir);
         String fileName = "factura-" + safeName(data.getInvoiceNumber()) + ".xml";
@@ -49,7 +49,7 @@ public class XmlSaver {
     }
 
     public Path saveInvoice(InvoiceData data, Path target) throws Exception {
-        validateInvoice(data);
+        DocumentValidator.validateInvoice(data);
         Document doc = newDocument();
         Element root = doc.createElement("factura");
         doc.appendChild(root);
@@ -79,6 +79,7 @@ public class XmlSaver {
     }
 
     public Path saveBudget(BudgetData data) throws Exception {
+        DocumentValidator.validateBudget(data);
         Path dir = baseDir.resolve("pressupostos");
         ensureStorageDirectory(dir);
         String fileName = "pressupost-" + safeName(data.getBudgetNumber()) + ".xml";
@@ -87,7 +88,7 @@ public class XmlSaver {
     }
 
     public Path saveBudget(BudgetData data, Path target) throws Exception {
-        validateBudget(data);
+        DocumentValidator.validateBudget(data);
         Document doc = newDocument();
         Element root = doc.createElement("pressupost");
         doc.appendChild(root);
@@ -358,76 +359,9 @@ public class XmlSaver {
         return elements;
     }
 
-    private void validateInvoice(InvoiceData data) {
-        if (data == null) throw new IllegalArgumentException(I18n.t("validation.no_invoice_data"));
-        validateText(data.getInvoiceNumber());
-        validateText(data.getIssuerName());
-        validateText(data.getIssuerNif());
-        validateText(data.getIssuerAddress());
-        validateText(data.getIssuerAccount());
-        validateText(data.getCustomerName());
-        validateText(data.getCustomerNif());
-        validateText(data.getCustomerAddress());
-        validatePercent(data.getVatPercent());
-        validateLines(data.getLines());
-    }
-
-    private void validateBudget(BudgetData data) {
-        if (data == null) throw new IllegalArgumentException(I18n.t("validation.no_budget_data"));
-        validateText(data.getBudgetNumber());
-        validateText(data.getSupplierName());
-        validateText(data.getSupplierNif());
-        validateText(data.getSupplierAddress());
-        validateText(data.getClientName());
-        validateText(data.getClientNif());
-        validateText(data.getClientAddress());
-        validateText(data.getPaymentTerms());
-        validateText(data.getNotes());
-        validateText(data.getTaxName());
-        validatePercent(data.getTaxPercent());
-        validateDateRange(data.getIssueDate(), data.getValidUntil());
-        validateLines(data.getLines());
-    }
-
     private void validateDateRange(LocalDate issueDate, LocalDate validUntil) {
         if (issueDate != null && validUntil != null && validUntil.isBefore(issueDate)) {
             throw new IllegalArgumentException(I18n.t("validation.date_range"));
-        }
-    }
-
-    private void validateLines(List<LineItem> lines) {
-        if (lines == null) return;
-        if (lines.size() > MAX_LINES) {
-            throw new IllegalArgumentException(I18n.t("validation.too_many_lines"));
-        }
-        for (LineItem line : lines) {
-            if (line == null) continue;
-            validateText(line.getDescription());
-            validateNumber(line.getQuantity());
-            validateNumber(line.getUnitPrice());
-            validatePercent(line.getDiscountPercent());
-        }
-    }
-
-    private void validateText(String value) {
-        if (value != null && value.length() > MAX_TEXT_LENGTH) {
-            throw new IllegalArgumentException(I18n.t("validation.field_too_long"));
-        }
-    }
-
-    private void validateNumber(BigDecimal value) {
-        if (value == null) return;
-        if (value.precision() > 24 || value.scale() < -6 || value.scale() > 8
-                || value.abs().compareTo(MAX_ABSOLUTE_NUMBER) > 0) {
-            throw new IllegalArgumentException(I18n.t("validation.document_number_range"));
-        }
-    }
-
-    private void validatePercent(BigDecimal value) {
-        if (value == null) return;
-        validateNumber(value);
-        if (value.compareTo(BigDecimal.ZERO) < 0 || value.compareTo(new BigDecimal("100")) > 0) {
-            throw new IllegalArgumentException(I18n.t("validation.document_percent_range"));
         }
     }
 

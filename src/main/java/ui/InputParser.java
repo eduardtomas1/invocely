@@ -9,12 +9,12 @@ import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.List;
 import models.LineItem;
+import validation.DocumentValidator;
 
 /** Strict parsing shared by the main forms and the defaults editor. */
 public final class InputParser {
     private static final DateTimeFormatter DISPLAY_DATE =
             DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
-    private static final BigDecimal MAX_ABSOLUTE_NUMBER = new BigDecimal("1000000000000000");
 
     private InputParser() { }
 
@@ -44,9 +44,25 @@ public final class InputParser {
         if (parsed.precision() > 8 || parsed.scale() < 0 || parsed.scale() > 4) {
             throw new IllegalArgumentException(I18n.t("validation.invalid_percent"));
         }
-        if (parsed.compareTo(BigDecimal.ZERO) < 0 || parsed.compareTo(new BigDecimal("100")) > 0) {
-            throw new IllegalArgumentException(I18n.t("validation.percent_range"));
+        DocumentValidator.validatePercent(parsed);
+        return parsed;
+    }
+
+    public static BigDecimal lineNumber(String value) {
+        if (value == null || value.trim().isEmpty()) return null;
+        final BigDecimal parsed;
+        try {
+            parsed = new BigDecimal(value.trim().replace(',', '.'));
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(I18n.t("validation.invalid_number"), ex);
         }
+        DocumentValidator.validateNumber(parsed);
+        return parsed;
+    }
+
+    public static BigDecimal linePercent(String value) {
+        BigDecimal parsed = lineNumber(value);
+        DocumentValidator.validatePercent(parsed);
         return parsed;
     }
 
@@ -57,23 +73,6 @@ public final class InputParser {
     }
 
     public static void validLineItems(List<LineItem> lines) {
-        if (lines == null) return;
-        for (LineItem line : lines) {
-            if (line == null) continue;
-            boundedNumber(line.getQuantity());
-            boundedNumber(line.getUnitPrice());
-            percent(line.getDiscountPercent() != null ? line.getDiscountPercent().toString() : "0");
-            if (line.getDescription() != null && line.getDescription().length() > 20_000) {
-                throw new IllegalArgumentException(I18n.t("validation.line_too_long"));
-            }
-        }
-    }
-
-    private static void boundedNumber(BigDecimal value) {
-        if (value == null) return;
-        if (value.precision() > 24 || value.scale() < -6 || value.scale() > 8
-                || value.abs().compareTo(MAX_ABSOLUTE_NUMBER) > 0) {
-            throw new IllegalArgumentException(I18n.t("validation.number_range"));
-        }
+        DocumentValidator.validateLines(lines);
     }
 }

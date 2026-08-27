@@ -35,4 +35,16 @@ class InputParserTest {
         assertThrows(IllegalArgumentException.class, () -> InputParser.validDateRange(
                 LocalDate.of(2026, 2, 1), LocalDate.of(2026, 1, 31)));
     }
+
+    @Test
+    void parsesAndBoundsLineNumbersImmediately() {
+        assertEquals(0, new BigDecimal("2.5").compareTo(InputParser.lineNumber("2,5")));
+        assertNull(InputParser.lineNumber(" "));
+        assertThrows(IllegalArgumentException.class, () -> InputParser.lineNumber("12 units"));
+        assertThrows(IllegalArgumentException.class, () -> InputParser.linePercent("-1"));
+        assertThrows(IllegalArgumentException.class, () -> InputParser.linePercent("101"));
+        assertTimeout(java.time.Duration.ofSeconds(1), () ->
+                assertThrows(IllegalArgumentException.class,
+                        () -> InputParser.lineNumber("1E+2147483647")));
+    }
 }

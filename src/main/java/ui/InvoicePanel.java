@@ -20,8 +20,11 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
+import validation.DocumentValidator;
 
 /**
  *
@@ -52,6 +55,7 @@ public class InvoicePanel extends JPanel {
     private final List<JPanel> metricPanels = new ArrayList<>();
     private final List<JLabel> metricTitleLabels = new ArrayList<>();
     private final List<JTextComponent> allFields = new ArrayList<>();
+    private DocumentState cleanState;
 
     public InvoicePanel() {
       setLayout(new BorderLayout(12,12));
@@ -107,13 +111,14 @@ public class InvoicePanel extends JPanel {
       updateTotals();
 
       add(buildTotalsBand(), BorderLayout.SOUTH);
+      markClean();
     }
 
     public InvoiceData collect() {
+      itemsPanel.requireCommittedEdits();
       LineTableModel m = itemsPanel.getModel();
       List<LineItem> lines = copyLines(m.getItems());
-      InputParser.validLineItems(lines);
-      return new InvoiceData(
+      InvoiceData data = new InvoiceData(
           cleanText(tfNumber),
           InputParser.requiredDate(cleanText(tfDate)),
           cleanText(tfIssuerName), cleanText(tfIssuerNif), cleanText(tfIssuerAddr),
@@ -123,9 +128,16 @@ public class InvoicePanel extends JPanel {
           itemsPanel.isSplitLines(),
           lines
       );
+      DocumentValidator.validateInvoice(data);
+      return data;
+    }
+
+    public void requireCommittedTableEdits() {
+      itemsPanel.requireCommittedEdits();
     }
 
     public void fillFromData(InvoiceData data) {
+      itemsPanel.cancelPendingEdits();
       setField(tfNumber, data.getInvoiceNumber());
       setField(tfDate, data.getIssueDate() != null ? formatDate(data.getIssueDate()) : "");
       setField(tfIssuerName, data.getIssuerName());
@@ -139,6 +151,7 @@ public class InvoicePanel extends JPanel {
       itemsPanel.setItems(data.getLines());
       itemsPanel.setSplitLines(data.isSplitLines());
       updateTotals();
+      markClean();
     }
 
     public void applyDefaults(InvoiceData data) {
@@ -158,14 +171,49 @@ public class InvoicePanel extends JPanel {
     }
 
     public DraftState snapshotDraft() {
-      return new DraftState(new String[] {
+      return new DraftState(captureState(), cleanState);
+    }
+
+    public void restoreDraft(DraftState state) {
+      if (state == null) return;
+      applyState(state.current);
+      cleanState = state.clean != null ? state.clean.copy() : captureState();
+      updateTotals();
+    }
+
+    public boolean isDirty() {
+      return itemsPanel.hasPendingChanges() || !captureState().equals(cleanState);
+    }
+
+    public void markClean() {
+      cleanState = captureState();
+    }
+
+    public void markCleanIfUnchanged(DraftState savedDraft) {
+      if (savedDraft != null && captureState().equals(savedDraft.current)) {
+        cleanState = savedDraft.current.copy();
+      }
+    }
+
+    public static final class DraftState {
+      private final DocumentState current;
+      private final DocumentState clean;
+
+      private DraftState(DocumentState current, DocumentState clean) {
+        this.current = current.copy();
+        this.clean = clean != null ? clean.copy() : null;
+      }
+    }
+
+    private DocumentState captureState() {
+      return new DocumentState(new String[] {
           cleanText(tfNumber), cleanText(tfDate), cleanText(tfIssuerName), cleanText(tfIssuerNif),
           cleanText(tfIssuerAddr), cleanText(tfIssuerAccount), cleanText(tfCustName),
           cleanText(tfCustNif), cleanText(tfCustAddr), cleanText(tfVatPercent)
       }, itemsPanel.isSplitLines(), copyLines(itemsPanel.getModel().getItems()));
     }
 
-    public void restoreDraft(DraftState state) {
+    private void applyState(DocumentState state) {
       if (state == null) return;
       setField(tfNumber, state.fields[0]);
       setField(tfDate, state.fields[1]);
@@ -179,18 +227,50 @@ public class InvoicePanel extends JPanel {
       setField(tfVatPercent, state.fields[9]);
       itemsPanel.setItems(copyLines(state.lines));
       itemsPanel.setSplitLines(state.splitLines);
-      updateTotals();
     }
 
-    public static final class DraftState {
+    private static final class DocumentState {
       private final String[] fields;
       private final boolean splitLines;
       private final List<LineItem> lines;
 
-      private DraftState(String[] fields, boolean splitLines, List<LineItem> lines) {
+      private DocumentState(String[] fields, boolean splitLines, List<LineItem> lines) {
         this.fields = fields.clone();
         this.splitLines = splitLines;
         this.lines = lines;
+      }
+
+      private DocumentState copy() {
+        List<LineItem> copiedLines = new ArrayList<>();
+        for (LineItem line : lines) {
+          copiedLines.add(new LineItem(line.getDescription(), line.getQuantity(), line.getUnitPrice(),
+              line.getDiscountPercent(), line.getCategory()));
+        }
+        return new DocumentState(fields, splitLines, copiedLines);
+      }
+
+      @Override
+      public boolean equals(Object other) {
+        if (this == other) return true;
+        if (!(other instanceof DocumentState)) return false;
+        DocumentState that = (DocumentState) other;
+        if (splitLines != that.splitLines || !Arrays.equals(fields, that.fields)
+            || lines.size() != that.lines.size()) return false;
+        for (int i = 0; i < lines.size(); i++) {
+          LineItem left = lines.get(i);
+          LineItem right = that.lines.get(i);
+          if (!Objects.equals(left.getDescription(), right.getDescription())
+              || !Objects.equals(left.getQuantity(), right.getQuantity())
+              || !Objects.equals(left.getUnitPrice(), right.getUnitPrice())
+              || !Objects.equals(left.getDiscountPercent(), right.getDiscountPercent())
+              || left.getCategory() != right.getCategory()) return false;
+        }
+        return true;
+      }
+
+      @Override
+      public int hashCode() {
+        return 31 * Arrays.hashCode(fields) + Boolean.hashCode(splitLines);
       }
     }
 

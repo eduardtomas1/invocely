@@ -3,6 +3,7 @@ package table;
 import i18n.I18n;
 import models.LineCategory;
 import models.LineItem;
+import validation.DocumentValidator;
 
 import javax.swing.table.AbstractTableModel;
 import java.math.BigDecimal;
@@ -74,26 +75,29 @@ public class LineTableModel extends AbstractTableModel {
   {
     LineItem li = data.get(row);
     if (li == null) return;
-    try {
-      switch (col) {
-        case 0: li.setDescription((String) value); break;
-        case 1: li.setQuantity(toBD(value)); break;
-        case 2: li.setUnitPrice(toBD(value)); break;
-        case 3: li.setDiscountPercent(toBD(value)); break;
-        default: break;
-      }
-      fireTableRowsUpdated(row, row);
-    } catch (Exception ignored) { }
+    switch (col) {
+      case 0: li.setDescription(value != null ? String.valueOf(value) : null); break;
+      case 1: li.setQuantity(toBD(value, false)); break;
+      case 2: li.setUnitPrice(toBD(value, false)); break;
+      case 3: li.setDiscountPercent(toBD(value, true)); break;
+      default: return;
+    }
+    fireTableRowsUpdated(row, row);
   }
 
-  private BigDecimal toBD(Object o)
+  private BigDecimal toBD(Object o, boolean percent)
   {
-    if (o == null) return null;
-    if (o instanceof BigDecimal) return (BigDecimal) o;
-    if (o instanceof Number) return new BigDecimal(((Number) o).toString());
-    String s = String.valueOf(o).trim();
-    if (s.isEmpty()) return null;
-    return new BigDecimal(s.replace(',', '.'));
+    if (o == null || String.valueOf(o).trim().isEmpty()) return null;
+    final BigDecimal parsed;
+    try {
+      parsed = o instanceof BigDecimal ? (BigDecimal) o
+          : new BigDecimal(String.valueOf(o).trim().replace(',', '.'));
+    } catch (NumberFormatException ex) {
+      throw new IllegalArgumentException(I18n.t("validation.invalid_number"), ex);
+    }
+    if (percent) DocumentValidator.validatePercent(parsed);
+    else DocumentValidator.validateNumber(parsed);
+    return parsed;
   }
 
   public void addEmpty()

@@ -13,6 +13,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Collections;
+import validation.DocumentValidator;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -152,6 +154,47 @@ class XmlSaverTest {
                 StandardCharsets.UTF_8);
         assertThrows(IllegalArgumentException.class,
                 () -> new XmlSaver(tempDir).loadInvoice(invalidCategory));
+    }
+
+    @Test
+    void rejectsUnsafeDocumentBeforeWritingXml() {
+        InvoiceData unsafe = new InvoiceData("x".repeat(20_001), LocalDate.of(2026, 1, 1),
+                "Issuer", "ID", "Address", "Account", "Customer", "ID2", "Address2",
+                BigDecimal.ZERO, false, Arrays.asList(line()));
+        Path target = tempDir.resolve("unsafe.xml");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new XmlSaver(tempDir).saveInvoice(unsafe, target));
+        assertFalse(Files.exists(target));
+    }
+
+    @Test
+    void convenienceSaveValidatesBeforeCreatingStorageDirectories() {
+        XmlSaver saver = new XmlSaver(tempDir);
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> saver.saveInvoice(null));
+
+        assertEquals(i18n.I18n.t("validation.document_required"), error.getMessage());
+        assertFalse(Files.exists(tempDir.resolve("factures")));
+    }
+
+    @Test
+    void largeAllowedDraftCanBeSavedAndOpenedAgain() throws Exception {
+        LineItem repeated = new LineItem("x".repeat(30), BigDecimal.ONE, BigDecimal.TEN,
+                BigDecimal.ZERO, LineCategory.MATERIAL);
+        InvoiceData invoice = new InvoiceData("LARGE", LocalDate.of(2026, 1, 1),
+                "Issuer", "ID", "Address", "Account", "Customer", "ID2", "Address2",
+                BigDecimal.ZERO, false,
+                Collections.nCopies(DocumentValidator.MAX_LINES, repeated));
+        Path target = tempDir.resolve("large.xml");
+        XmlSaver saver = new XmlSaver(tempDir);
+
+        saver.saveInvoice(invoice, target);
+        InvoiceData loaded = saver.loadInvoice(target);
+
+        assertEquals(DocumentValidator.MAX_LINES, loaded.getLines().size());
+        assertTrue(Files.size(target) < 5L * 1024L * 1024L);
     }
 
     private String invoiceXml(String vat) {
